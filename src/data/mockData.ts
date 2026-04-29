@@ -11,7 +11,7 @@ export const mockDiagnosticos: DiagnosticoMock[] = [
     tallerRecomendado: {
       id: "t1",
       nombre: "Frenos Santa Cruz",
-      especialidad: "Frenos y Suspensión [cite: 48]",
+      especialidad: "Frenos y Suspensión",
       distancia: "1.5 km",
       telefono: "77700000"
     }
