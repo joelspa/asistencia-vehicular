@@ -1,6 +1,7 @@
 export type RootStackParamList = {
   Inicio: undefined;
-  Diagnostico: undefined;
+  Carga: undefined;
+  Resultado: undefined;
   Mapa: undefined;
   Historial: undefined;
   Alerta: undefined;
