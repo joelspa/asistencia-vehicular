@@ -54,6 +54,66 @@ app.post('/diagnosticar', async (req: Request, res: Response) => {
     }
 });
 
+// Endpoint para buscar talleres cercanos usando coordenadas
+app.get('/talleres', async (req: Request, res: Response) => {
+    try {
+        const { lat, lng } = req.query;
+
+        if (!lat || !lng) {
+            return res.status(400).json({ error: 'Faltan las coordenadas GPS (lat y lng).' });
+        }
+
+        const radioBusqueda = 5000;
+        // Agregamos [timeout:25] para que la consulta no se quede colgada
+        const consultaGeo = `
+        [out:json][timeout:25];
+        (
+            node["shop"="motorcycle_repair"](around:${radioBusqueda}, ${lat}, ${lng});
+            node["shop"="car_repair"](around:${radioBusqueda}, ${lat}, ${lng});
+        );
+        out body;
+    `;
+
+        const urlMapeo = 'https://overpass-api.de/api/interpreter';
+
+        // Cambiamos a POST. Es más seguro para evitar que el navegador rompa la consulta.
+        const respuestaMapas = await fetch(urlMapeo, {
+            method: 'POST',
+            headers: {
+                'User-Agent': 'AsistenciaVehicularApp/1.0 (Proyecto Universitario)',
+                'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            // Mandamos la consulta en el cuerpo de la petición
+            body: `data=${encodeURIComponent(consultaGeo.trim())}`
+        });
+
+        // 1. Leemos todo como texto crudo primero
+        const rawText = await respuestaMapas.text();
+
+        // 2. Si empieza con '<', es un HTML de error del servidor público. Lo atajamos aquí.
+        if (rawText.trim().startsWith('<')) {
+            console.error('El servicio de mapas devolvió HTML (probablemente saturado):', rawText.substring(0, 200));
+            return res.status(502).json({ error: 'El servicio de mapas no está disponible en este momento. Intenta de nuevo.' });
+        }
+
+        // 3. Si pasó la prueba, lo convertimos a JSON de forma segura
+        const datosGeo = JSON.parse(rawText);
+
+        const talleresLimpios = datosGeo.elements.map((taller: any) => ({
+            id: taller.id,
+            nombre: taller.tags.name || "Taller Mecánico Local",
+            latitud: taller.lat,
+            longitud: taller.lon
+        }));
+
+        res.json({ talleres: talleresLimpios });
+
+    } catch (error) {
+        console.error('Error interno al buscar talleres:', error);
+        res.status(500).json({ error: 'Fallo interno al conectar con el servicio de geolocalización.' });
+    }
+});
+
 app.listen(PORT, () => {
     console.log(`🚀 Servidor backend corriendo en http://localhost:${PORT}`);
 });
