@@ -14,7 +14,7 @@ import { useState, useCallback } from 'react';
 import { DiagnosticoResponse } from '../types/apiTypes';
 import { solicitarDiagnostico } from '../services/ai';
 import { guardarDiagnostico } from '../services/storage';
-import { mockDiagnosticos } from '../data/mockData';
+import { getFallbackDiagnosis } from '../utils/diagnosisFallback';
 import { getUserFriendlyErrorMessage } from '../utils/errorMessages';
 
 export interface DiagnosisFetchState {
@@ -67,7 +67,7 @@ export function useDiagnosisFetch() {
 
                 return data;
             } catch (err) {
-                // Respaldo con datos mock
+                // Respaldo: selecciona diagnóstico mock según síntomas
                 const mockData = getFallbackDiagnosis(sintomas);
 
                 try {
@@ -90,47 +90,6 @@ export function useDiagnosisFetch() {
         },
         []
     );
-
-    /**
-     * Elige un diagnóstico mock según las palabras clave en los síntomas.
-     * Heurística simple para proporcionar resultados coherentes.
-     */
-    function getFallbackDiagnosis(sintomas: string): DiagnosticoResponse {
-        const lower = sintomas.toLowerCase();
-
-        if (lower.includes('freno') || lower.includes('frenada')) {
-            return {
-                urgency_level: 'critica',
-                urgency_label: 'Falla Crítica - Sistema de Frenos',
-                razonamiento: mockDiagnosticos.critica?.razonamiento || '',
-                causas: mockDiagnosticos.critica?.causas || [],
-                especialidades_recomendadas: ['Mecanica general'],
-            };
-        }
-
-        if (
-            lower.includes('aceite') ||
-            lower.includes('cadena') ||
-            lower.includes('correa')
-        ) {
-            return {
-                urgency_level: 'leve',
-                urgency_label: 'Falla Leve - Mantenimiento',
-                razonamiento: mockDiagnosticos.leve?.razonamiento || '',
-                causas: mockDiagnosticos.leve?.causas || [],
-                especialidades_recomendadas: ['Mecanica general'],
-            };
-        }
-
-        // Por defecto, moderada
-        return {
-            urgency_level: 'moderada',
-            urgency_label: mockDiagnosticos.moderada?.urgency_label || '',
-            razonamiento: mockDiagnosticos.moderada?.razonamiento || '',
-            causas: mockDiagnosticos.moderada?.causas || [],
-            especialidades_recomendadas: ['Mecanica general', 'Electromecanica'],
-        };
-    }
 
     const reset = useCallback(() => {
         setState({
