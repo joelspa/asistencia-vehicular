@@ -42,10 +42,12 @@ function getSaludo() {
 export default function HomeScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [text, setText] = useState('');
+  const [inputError, setInputError] = useState('');
   const { perfilLabel } = useVehicleProfile();
   const { bottom } = useSafeAreaInsets();
 
   const handleChipPress = (symptom: string) => {
+    setInputError('');
     setText((prev) => {
       const trimmed = prev.trim();
       if (!trimmed) return symptom;
@@ -56,9 +58,10 @@ export default function HomeScreen() {
 
   const handleDiagnosticar = () => {
     if (!text.trim()) {
-      console.warn(ERROR_MESSAGES.NO_SYMPTOMS_PROVIDED);
+      setInputError(ERROR_MESSAGES.NO_SYMPTOMS_PROVIDED);
       return;
     }
+    setInputError('');
     navigation.navigate('Carga', {
       sintomas: text.trim(),
       perfilVehiculo: perfilLabel(),
@@ -117,24 +120,27 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        <View style={[s.inputCard, hasInput && s.inputCardActive]}>
+        <View style={[s.inputCard, hasInput && s.inputCardActive, !!inputError && s.inputCardError]}>
           <TextInput
             style={s.textarea}
             placeholder="Ej: Vibra al acelerar y se escucha un chillido al frenar..."
             placeholderTextColor={colors.tertiaryText}
             value={text}
-            onChangeText={setText}
+            onChangeText={(v) => { setText(v); if (inputError) setInputError(''); }}
             multiline
             numberOfLines={5}
             selectionColor={colors.brand}
             returnKeyType="done"
             onSubmitEditing={Keyboard.dismiss}
           />
-          {!hasInput && (
+          {!hasInput && !inputError && (
             <Text style={s.inputHint}>
               Incluí ruidos, vibraciones, olores, cuándo ocurre y desde cuándo.
             </Text>
           )}
+          {inputError ? (
+            <Text style={s.inputError}>{inputError}</Text>
+          ) : null}
           <View style={s.inputFooter}>
             <Text style={s.charCount}>{text.length} / 500</Text>
             {hasInput && (
@@ -269,6 +275,11 @@ const s = StyleSheet.create({
     shadowColor: colors.brand,
     shadowOpacity: 0.12,
   },
+  inputCardError: {
+    borderColor: colors.critRed,
+    shadowColor: colors.critRed,
+    shadowOpacity: 0.1,
+  },
   textarea: {
     minHeight: 100,
     fontSize: 14,
@@ -292,6 +303,13 @@ const s = StyleSheet.create({
     lineHeight: 18,
     marginBottom: 8,
     fontStyle: 'italic',
+  },
+  inputError: {
+    fontSize: 12,
+    color: colors.critRed,
+    lineHeight: 18,
+    marginBottom: 8,
+    fontWeight: '600',
   },
   charCount: { fontSize: 11, color: colors.tertiaryText },
   sufficientBadge: { flexDirection: 'row', alignItems: 'center', gap: 4 },

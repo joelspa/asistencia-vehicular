@@ -19,12 +19,10 @@ import HistoryScreen from './src/screens/HistoryScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 
 import { Sparkles, Clock, MapPin, Car } from 'lucide-react-native';
+import { colors } from './src/theme/colors';
 
 const Tab = createBottomTabNavigator<TabParamList>();
 const Stack = createNativeStackNavigator<RootStackParamList>();
-
-const BRAND = '#2563EB';
-const INACTIVE = '#8896A8';
 
 const TAB_ICONS: Record<string, typeof Sparkles> = {
   Inicio: Sparkles,
@@ -38,7 +36,7 @@ function TabIcon({ name, focused }: { name: string; focused: boolean }) {
   return (
     <View style={tabStyles.iconWrap}>
       <IconComp
-        color={focused ? BRAND : INACTIVE}
+        color={focused ? colors.brand : colors.tertiaryText}
         size={22}
         strokeWidth={focused ? 2.2 : 1.7}
       />
@@ -107,7 +105,7 @@ const tabStyles = StyleSheet.create({
     width: 4,
     height: 4,
     borderRadius: 2,
-    backgroundColor: BRAND,
+    backgroundColor: colors.brand,
     marginTop: 1,
   },
 });
