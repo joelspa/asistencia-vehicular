@@ -1,31 +1,55 @@
 /**
- * Paleta de colores principal de la aplicación.
- * Úsenlos importando 'colors' desde este archivo en lugar de escribir el HEX directamente.
+ * Paleta de colores MecanicaYA v2.
+ * Azul confianza como brand principal + ámbar herramienta como acento.
  */
 export const colors = {
-  // Fondos y Textos principales
-  background: '#F8F9FA', // Para el fondo general de las pantallas
-  surface: '#FFFFFF',    // Para el fondo de las tarjetas y modales
-  textPrimary: '#1E293B', // Para títulos y textos principales
-  textSecondary: '#64748B', // Para subtítulos y textos de apoyo
+  // Brand — azul confianza
+  brand: '#2563EB',
+  brandDeep: '#1D4ED8',
+  brandSoft: '#E6EEFE',
 
-  // UI General
-  navy: '#0F172A',       // Para botones principales y headers
-  border: '#E2E8F0',     // Para líneas divisorias y bordes de inputs
+  // Acento — ámbar herramienta
+  accent: '#F59E0B',
+  accentSoft: '#FEF3C7',
 
-  // 🟢🟠🔴 Niveles de Urgencia (Diagnóstico)
-  safe: '#166534',       // Verde: Falla leve
-  moderate: '#C2410C',   // Naranja: Falla moderada
-  critical: '#B91C1C',   // Rojo: Falla crítica
+  // Fondos
+  appBackground: '#F4F6F9',
+  cardBackground: '#FFFFFF',
+  surface2: '#EDF1F7',
 
-  // 🟣 Modo Moto (Sensores y Alertas)
-  motoActive: '#7C3AED', // Morado: Cuando el switch de Modo Moto está encendido
-  motoAlertBackground: '#1A0505', // Fondo oscuro rojo: Exclusivo para AccidentAlertScreen
+  // Textos
+  primaryText: '#0E1A2B',
+  secondaryText: '#4A5A70',
+  tertiaryText: '#8896A8',
+
+  // UI
+  borderColor: '#DEE5EE',
+  navy: '#0E1A2B',
+
+  // Urgencia
+  safeGreen: '#15803D',
+  safeSoft: '#DCFCE7',
+  warnOrange: '#D97706',
+  warnSoft: '#FEF3C7',
+  critRed: '#DC2626',
+  critSoft: '#FEE2E2',
+
+  // Aliases de compatibilidad (apuntan a la nueva paleta)
+  primaryOrange: '#2563EB',
+  orangeDark: '#1D4ED8',
+  lightSurface: '#EDF1F7',
+  greenSurface: '#DCFCE7',
+  moderateOrange: '#D97706',
+  moderateSurface: '#FEF3C7',
+  criticalRed: '#DC2626',
+  redSurface: '#FEE2E2',
+
+  // Especiales
+  motoPurple: '#6D28D9',
+  purpleSurface: '#F5F3FF',
+  accidentBackground: '#1A0505',
 };
 
-/**
- * Sistema de espaciado (márgenes y paddings).
- */
 export const spacing = {
   xs: 4,
   sm: 8,
@@ -34,12 +58,11 @@ export const spacing = {
   xl: 32,
 };
 
-/**
- * Sistema de bordes redondeados.
- */
 export const borderRadius = {
-  cardSm: 8,     // Para tarjetas pequeñas o chips
-  cardLg: 16,    // Para tarjetas principales (ej. Resultados)
-  input: 12,     // Para campos de texto
-  pill: 9999,    // Para botones completamente redondeados
+  sm: 8,
+  md: 12,
+  lg: 16,
+  xl: 20,
+  xxl: 24,
+  pill: 9999,
 };

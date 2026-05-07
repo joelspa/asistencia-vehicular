@@ -1,888 +1,495 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+/** Pantalla de perfil del vehículo y configuración del motor de IA. */
+import React, { useState, useEffect } from 'react';
 import {
-  Alert,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
+  View, Text, ScrollView, TouchableOpacity, TextInput, StyleSheet, Alert,
+  KeyboardAvoidingView, Platform,
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { colors, spacing, borderRadius } from '../theme/colors';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import {
+  Car, Fuel, AlertTriangle, ShieldCheck, Cpu, Edit2, Phone, Shield,
+} from 'lucide-react-native';
+import { colors } from '../theme/colors';
+import { useVehicleProfile } from '../hooks/useVehicleProfile';
+import { PerfilVehiculo } from '../services/storage';
+import { API_BASE_URL, API_ENDPOINTS } from '../constants/api';
+import { useModoMotoContext } from '../context/ModoMotoContext';
 
-type SensorSensitivity = 'Baja' | 'Media' | 'Alta';
-type SelectorType = 'brand' | 'model' | 'year' | 'fuel' | null;
-
-type SettingsData = {
-  brand: string;
-  model: string;
-  year: string;
-  fuel: string;
-  emergencyContactName: string;
-  emergencyPhone: string;
-  sensitivity: SensorSensitivity;
-};
-
-type SelectionRowProps = {
-  label: string;
-  value: string;
-  placeholder: string;
-  onPress: () => void;
-  isLast?: boolean;
-  showChip?: boolean;
-};
-
-type OptionModalProps = {
-  visible: boolean;
-  title: string;
-  options: string[];
-  selectedValue: string;
-  onSelect: (value: string) => void;
-  onClose: () => void;
-};
-
-const STORAGE_KEY = '@mechanicaya_settings';
-
-const BRAND_OPTIONS = [
-  'Toyota',
-  'Suzuki',
-  'Nissan',
-  'Kia',
-  'Hyundai',
-  'Chevrolet',
-  'Mazda',
-  'Volkswagen',
-  'Ford',
-];
-
-const MODEL_BY_BRAND: Record<string, string[]> = {
-  Toyota: ['Corolla', 'Yaris', 'Hilux', 'RAV4'],
-  Suzuki: ['Swift', 'Dzire', 'Vitara', 'S-Presso'],
-  Nissan: ['Versa', 'Sentra', 'Frontier', 'Kicks'],
-  Kia: ['Rio', 'Cerato', 'Sportage', 'Picanto'],
-  Hyundai: ['Accent', 'Elantra', 'Tucson', 'Santa Fe'],
-  Chevrolet: ['Onix', 'Tracker', 'Cruze', 'Spark'],
-  Mazda: ['Mazda 2', 'Mazda 3', 'CX-3', 'CX-5'],
-  Volkswagen: ['Gol', 'Polo', 'Jetta', 'T-Cross'],
-  Ford: ['Fiesta', 'Focus', 'EcoSport', 'Ranger'],
-};
-
-const FUEL_OPTIONS = ['Gasolina', 'GNV', 'Eléctrico'];
-
-const YEAR_OPTIONS = Array.from({ length: 31 }, (_, index) =>
-  String(new Date().getFullYear() - index)
-);
-
-function normalizePhone(phone: string) {
-  return phone.replace(/\s+/g, '');
-}
-
-function formatPhoneInput(text: string) {
-  const onlyValidCharacters = text.replace(/[^\d+]/g, '');
-
-  let cleanedText = onlyValidCharacters;
-
-  if (!cleanedText.startsWith('+')) {
-    cleanedText = `+${cleanedText.replace(/\+/g, '')}`;
-  }
-
-  cleanedText = `+${cleanedText.slice(1).replace(/\+/g, '')}`;
-
-  if (cleanedText.length > 12) {
-    cleanedText = cleanedText.slice(0, 12);
-  }
-
-  if (cleanedText.startsWith('+591') && cleanedText.length > 4) {
-    return `${cleanedText.slice(0, 4)} ${cleanedText.slice(4)}`;
-  }
-
-  return cleanedText;
-}
-
-function isValidPhone(phone: string) {
-  const cleanedPhone = normalizePhone(phone);
-
-  return /^\+591\d{8}$/.test(cleanedPhone);
-}
-
-function SelectionRow({
-  label,
-  value,
-  placeholder,
-  onPress,
-  isLast = false,
-  showChip = false,
-}: SelectionRowProps) {
-  const hasValue = value.trim().length > 0;
-
-  return (
-    <Pressable
-      style={[styles.selectionRow, isLast && styles.selectionRowLast]}
-      onPress={onPress}
-    >
-      <Text style={styles.selectionLabel}>{label}</Text>
-
-      <View style={styles.selectionRight}>
-        {showChip ? (
-          <View style={[styles.valueChip, !hasValue && styles.valueChipEmpty]}>
-            <Text
-              style={[
-                styles.valueChipText,
-                !hasValue && styles.placeholderText,
-              ]}
-            >
-              {hasValue ? value : placeholder}
-            </Text>
-          </View>
-        ) : (
-          <>
-            <Text
-              style={[
-                styles.selectionValue,
-                !hasValue && styles.placeholderText,
-              ]}
-            >
-              {hasValue ? value : placeholder}
-            </Text>
-            <Text style={styles.chevron}>›</Text>
-          </>
-        )}
-      </View>
-    </Pressable>
-  );
-}
-
-function OptionModal({
-  visible,
-  title,
-  options,
-  selectedValue,
-  onSelect,
-  onClose,
-}: OptionModalProps) {
-  return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="fade"
-      onRequestClose={onClose}
-    >
-      <Pressable style={styles.modalOverlay} onPress={onClose}>
-        <Pressable style={styles.modalCard} onPress={() => {}}>
-          <Text style={styles.modalTitle}>{title}</Text>
-
-          <ScrollView showsVerticalScrollIndicator={false}>
-            {options.map((option) => {
-              const isSelected = option === selectedValue;
-
-              return (
-                <Pressable
-                  key={option}
-                  style={styles.modalOption}
-                  onPress={() => {
-                    onSelect(option);
-                    onClose();
-                  }}
-                >
-                  <Text
-                    style={[
-                      styles.modalOptionText,
-                      isSelected && styles.modalOptionTextSelected,
-                    ]}
-                  >
-                    {option}
-                  </Text>
-
-                  {isSelected ? <Text style={styles.checkIcon}>✓</Text> : null}
-                </Pressable>
-              );
-            })}
-          </ScrollView>
-
-          <Pressable style={styles.modalCloseButton} onPress={onClose}>
-            <Text style={styles.modalCloseButtonText}>Cerrar</Text>
-          </Pressable>
-        </Pressable>
-      </Pressable>
-    </Modal>
-  );
-}
+const FUEL_OPTIONS = ['Gasolina', 'Diesel', 'Gas'];
 
 export default function SettingsScreen() {
-  const phoneInputRef = useRef<TextInput>(null);
-  const contactNameInputRef = useRef<TextInput>(null);
+  const { phase, activate, deactivate, contacto, saveContacto } = useModoMotoContext();
+  const [editandoContacto, setEditandoContacto] = useState(false);
+  const [contactoTemp, setContactoTemp] = useState('');
+  const [editando, setEditando] = useState(false);
+  const [perfilTemp, setPerfilTemp] = useState<PerfilVehiculo | null>(null);
+  const [aiModel, setAiModel] = useState('Ollama (cargando...)');
 
-  const [brand, setBrand] = useState('');
-  const [model, setModel] = useState('');
-  const [year, setYear] = useState('');
-  const [fuel, setFuel] = useState('');
-  const [emergencyContactName, setEmergencyContactName] = useState('');
-  const [emergencyPhone, setEmergencyPhone] = useState('');
-  const [sensitivity, setSensitivity] = useState<SensorSensitivity>('Media');
-
-  const [activeSelector, setActiveSelector] = useState<SelectorType>(null);
-
-  const modelOptions = useMemo(() => {
-    return brand ? MODEL_BY_BRAND[brand] ?? [] : [];
-  }, [brand]);
+  const { perfil, updateProfile, loading } = useVehicleProfile();
 
   useEffect(() => {
-    loadSettings();
+    if (perfil) setPerfilTemp(perfil);
+  }, [perfil]);
+
+  useEffect(() => {
+    fetch(`${API_BASE_URL}${API_ENDPOINTS.config}`)
+      .then(res => res.json())
+      .then(data => setAiModel(`Ollama · ${data.model}`))
+      .catch(() => setAiModel('Ollama · local'));
   }, []);
 
-  const loadSettings = async () => {
-    try {
-      const savedSettings = await AsyncStorage.getItem(STORAGE_KEY);
-
-      if (!savedSettings) return;
-
-      const parsedSettings: SettingsData = JSON.parse(savedSettings);
-
-      setBrand(parsedSettings.brand ?? '');
-      setModel(parsedSettings.model ?? '');
-      setYear(parsedSettings.year ?? '');
-      setFuel(parsedSettings.fuel ?? '');
-      setEmergencyContactName(parsedSettings.emergencyContactName ?? '');
-      setEmergencyPhone(formatPhoneInput(parsedSettings.emergencyPhone ?? ''));
-      setSensitivity(parsedSettings.sensitivity ?? 'Media');
-    } catch (error) {
-      Alert.alert('Error', 'No se pudieron cargar las preferencias guardadas.');
-    }
+  const guardarCambios = async () => {
+    if (!perfilTemp) return;
+    await updateProfile(perfilTemp);
+    setEditando(false);
+    Alert.alert('Guardado', 'Perfil del vehículo actualizado.');
   };
 
-  const saveSettings = async () => {
-    if (!brand || !model || !year || !fuel) {
-      Alert.alert(
-        'Campos incompletos',
-        'Selecciona Marca, Modelo, Año y Combustible.'
-      );
-      return;
-    }
-
-    if (!emergencyContactName.trim()) {
-      Alert.alert(
-        'Nombre requerido',
-        'Ingresa el nombre del contacto de emergencia.'
-      );
-      return;
-    }
-
-    if (!emergencyPhone.trim()) {
-      Alert.alert(
-        'Número requerido',
-        'Ingresa un número de WhatsApp con código de país.'
-      );
-      return;
-    }
-
-    if (!isValidPhone(emergencyPhone)) {
-      Alert.alert(
-        'Número inválido',
-        'Ingresa un número válido de Bolivia. Ejemplo: +591 71234567'
-      );
-      return;
-    }
-
-    const settingsData: SettingsData = {
-      brand,
-      model,
-      year,
-      fuel,
-      emergencyContactName: emergencyContactName.trim(),
-      emergencyPhone: normalizePhone(emergencyPhone),
-      sensitivity,
-    };
-
-    try {
-      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(settingsData));
-
-      Alert.alert(
-        'Configuración guardada',
-        'Tus preferencias se guardaron correctamente.'
-      );
-    } catch (error) {
-      Alert.alert('Error', 'No se pudieron guardar las preferencias.');
-    }
+  const cancelarEdicion = () => {
+    if (perfil) setPerfilTemp(perfil);
+    setEditando(false);
   };
 
-  const testAlert = () => {
-    if (!emergencyPhone.trim()) {
-      Alert.alert(
-        'Número requerido',
-        'Primero registra un número de WhatsApp con código de país.'
-      );
-      return;
-    }
-
-    if (!isValidPhone(emergencyPhone)) {
-      Alert.alert(
-        'Número inválido',
-        'Ingresa un número válido de Bolivia. Ejemplo: +591 71234567'
-      );
-      return;
-    }
-
-    Alert.alert(
-      'Prueba exitosa',
-      `El contacto ${
-        emergencyContactName || 'de emergencia'
-      } (${emergencyPhone}) está configurado correctamente.`
+  if (loading || !perfilTemp) {
+    return (
+      <SafeAreaView style={s.screen} edges={['top']}>
+        <View style={s.loadingContainer}>
+          <Text style={s.loadingText}>Cargando perfil...</Text>
+        </View>
+      </SafeAreaView>
     );
-  };
-
-  const openModelSelector = () => {
-    if (!brand) {
-      Alert.alert('Marca requerida', 'Primero selecciona la marca del vehículo.');
-      return;
-    }
-
-    setActiveSelector('model');
-  };
-
-  const handleBrandSelect = (selectedBrand: string) => {
-    setBrand(selectedBrand);
-
-    const validModels = MODEL_BY_BRAND[selectedBrand] ?? [];
-    if (!validModels.includes(model)) {
-      setModel('');
-    }
-  };
-
-  const renderModal = () => {
-    if (activeSelector === 'brand') {
-      return (
-        <OptionModal
-          visible
-          title="Selecciona la marca"
-          options={BRAND_OPTIONS}
-          selectedValue={brand}
-          onSelect={handleBrandSelect}
-          onClose={() => setActiveSelector(null)}
-        />
-      );
-    }
-
-    if (activeSelector === 'model') {
-      return (
-        <OptionModal
-          visible
-          title="Selecciona el modelo"
-          options={modelOptions}
-          selectedValue={model}
-          onSelect={setModel}
-          onClose={() => setActiveSelector(null)}
-        />
-      );
-    }
-
-    if (activeSelector === 'year') {
-      return (
-        <OptionModal
-          visible
-          title="Selecciona el año"
-          options={YEAR_OPTIONS}
-          selectedValue={year}
-          onSelect={setYear}
-          onClose={() => setActiveSelector(null)}
-        />
-      );
-    }
-
-    if (activeSelector === 'fuel') {
-      return (
-        <OptionModal
-          visible
-          title="Selecciona el combustible"
-          options={FUEL_OPTIONS}
-          selectedValue={fuel}
-          onSelect={setFuel}
-          onClose={() => setActiveSelector(null)}
-        />
-      );
-    }
-
-    return null;
-  };
+  }
 
   return (
-    <KeyboardAvoidingView
-      style={styles.screen}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
-      <ScrollView
-        contentContainerStyle={styles.container}
-        showsVerticalScrollIndicator={false}
-      >
-        <Text style={styles.title}>Configuración</Text>
+    <SafeAreaView style={s.screen} edges={['top']}>
+      <View style={s.header}>
+        <Text style={s.headerTitle}>Mi vehículo</Text>
+        <Text style={s.headerSub}>Personaliza el diagnóstico</Text>
+      </View>
+      <KeyboardAvoidingView style={s.flex} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
 
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>MI VEHÍCULO</Text>
-
-          <SelectionRow
-            label="Marca"
-            value={brand}
-            placeholder="Seleccionar"
-            onPress={() => setActiveSelector('brand')}
-          />
-
-          <SelectionRow
-            label="Modelo"
-            value={model}
-            placeholder="Seleccionar"
-            onPress={openModelSelector}
-          />
-
-          <SelectionRow
-            label="Año"
-            value={year}
-            placeholder="Seleccionar"
-            onPress={() => setActiveSelector('year')}
-          />
-
-          <SelectionRow
-            label="Combustible"
-            value={fuel}
-            placeholder="Seleccionar"
-            onPress={() => setActiveSelector('fuel')}
-            isLast
-            showChip
-          />
-        </View>
-
-        <View style={[styles.card, styles.emergencyCard]}>
-          <Text style={styles.sectionTitle}>CONTACTO DE EMERGENCIA</Text>
-
-          <View style={styles.emergencyRow}>
-            <View style={styles.avatarCircle}>
-              <Text style={styles.avatarIcon}>♙</Text>
-            </View>
-
-            <View style={styles.emergencyInfo}>
-              <TextInput
-                ref={contactNameInputRef}
-                style={styles.contactNameInput}
-                value={emergencyContactName}
-                onChangeText={setEmergencyContactName}
-                placeholder="Nombre del contacto"
-                placeholderTextColor={colors.textSecondary}
-              />
-
-              <TextInput
-                ref={phoneInputRef}
-                style={styles.phoneInput}
-                value={emergencyPhone}
-                onChangeText={(text) => {
-                  setEmergencyPhone(formatPhoneInput(text));
-                }}
-                placeholder="+591 7XXXXXXX"
-                placeholderTextColor={colors.textSecondary}
-                keyboardType="phone-pad"
-                maxLength={13}
-              />
-            </View>
-
-            <Pressable
-              style={styles.editCircle}
-              onPress={() => {
-                if (!emergencyContactName.trim()) {
-                  contactNameInputRef.current?.focus();
-                  return;
-                }
-
-                phoneInputRef.current?.focus();
-              }}
-            >
-              <Text style={styles.editText}>✎</Text>
-            </Pressable>
+        {/* Hero card vehículo — oscuro */}
+        <View style={s.vehicleHero}>
+          {/* Decoración */}
+          <View style={s.heroDecor} pointerEvents="none">
+            <Car color="rgba(255,255,255,0.06)" size={180} strokeWidth={1.4} />
           </View>
 
-          <Pressable style={styles.testButton} onPress={testAlert}>
-            <Text style={styles.testButtonText}>Probar alerta</Text>
-          </Pressable>
-        </View>
-
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>SENSIBILIDAD DEL SENSOR</Text>
-
-          <View style={styles.sensitivityRow}>
-            {(['Baja', 'Media', 'Alta'] as SensorSensitivity[]).map(
-              (option, index) => {
-                const isActive = sensitivity === option;
-
-                return (
-                  <Pressable
-                    key={option}
-                    style={[
-                      styles.sensitivityButton,
-                      isActive && styles.sensitivityButtonActive,
-                      index < 2 && styles.sensitivityButtonSpacing,
-                    ]}
-                    onPress={() => setSensitivity(option)}
-                  >
-                    <Text
-                      style={[
-                        styles.sensitivityText,
-                        isActive && styles.sensitivityTextActive,
-                      ]}
-                    >
-                      {option}
-                    </Text>
-                  </Pressable>
-                );
-              }
+          <View style={s.heroTopRow}>
+            <Text style={s.heroBadge}>Vehículo activo</Text>
+            {!editando ? (
+              <TouchableOpacity onPress={() => setEditando(true)} activeOpacity={0.7}>
+                <Edit2 color="rgba(255,255,255,0.7)" size={16} strokeWidth={2} />
+              </TouchableOpacity>
+            ) : (
+              <View style={s.heroActions}>
+                <TouchableOpacity onPress={cancelarEdicion}>
+                  <Text style={s.heroCancelText}>Cancelar</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={s.heroSaveBtn} onPress={guardarCambios} activeOpacity={0.8}>
+                  <Text style={s.heroSaveText}>Guardar</Text>
+                </TouchableOpacity>
+              </View>
             )}
           </View>
 
-          <Text style={styles.helperText}>
-            Recomendado para caminos con baches frecuentes.
+          <Text style={s.heroVehicleName}>
+            {perfilTemp.marca || 'Sin marca'} {perfilTemp.modelo || ''}
+          </Text>
+          <Text style={s.heroVehicleSub}>
+            {perfilTemp.anio} · {perfilTemp.combustible}
           </Text>
         </View>
 
-        <View style={styles.infoCard}>
-          <Text style={styles.appName}>MecanicaYA</Text>
-          <Text style={styles.appDescription}>
-            Desarrollada con React Native y Expo Go
-          </Text>
+        {/* Datos del vehículo */}
+        <View style={s.sectionLabel}>
+          <Text style={s.sectionLabelText}>DATOS DEL VEHÍCULO</Text>
+        </View>
+        <View style={s.card}>
+          {[
+            { label: 'Marca', key: 'marca' as const, placeholder: 'Ej: Toyota' },
+            { label: 'Modelo', key: 'modelo' as const, placeholder: 'Ej: Corolla' },
+            { label: 'Año', key: 'anio' as const, placeholder: 'Ej: 2019' },
+          ].map((item, i, arr) => (
+            <View key={i} style={[s.row, i < arr.length - 1 && s.rowBorder]}>
+              <Text style={s.rowLabel}>{item.label}</Text>
+              {editando ? (
+                <TextInput
+                  style={s.rowInput}
+                  value={perfilTemp[item.key]}
+                  onChangeText={(v) => setPerfilTemp({ ...perfilTemp, [item.key]: v })}
+                  placeholder={item.placeholder}
+                  placeholderTextColor={colors.tertiaryText}
+                  selectionColor={colors.brand}
+                />
+              ) : (
+                <Text style={s.rowValue}>{perfilTemp[item.key] || 'Sin definir'}</Text>
+              )}
+            </View>
+          ))}
 
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Datos vehiculares</Text>
-            <Text style={styles.infoValue}>5,000+ registros reales</Text>
-          </View>
-
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Almacenamiento</Text>
-            <Text style={styles.infoValue}>Solo en tu dispositivo</Text>
-          </View>
-
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Costo de servicios</Text>
-            <Text style={styles.infoValueStrong}>Ninguno</Text>
+          {/* Combustible */}
+          <View style={s.fuelSection}>
+            <View style={s.fuelLabelRow}>
+              <Fuel color={colors.tertiaryText} size={14} />
+              <Text style={s.rowLabel}>Combustible</Text>
+            </View>
+            {editando ? (
+              <View style={s.fuelOptions}>
+                {FUEL_OPTIONS.map((fuel) => (
+                  <TouchableOpacity
+                    key={fuel}
+                    style={[s.fuelOption, perfilTemp.combustible === fuel && s.fuelOptionActive]}
+                    onPress={() => setPerfilTemp({ ...perfilTemp, combustible: fuel })}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={[s.fuelOptionText, perfilTemp.combustible === fuel && s.fuelOptionTextActive]}>
+                      {fuel}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            ) : (
+              <View style={s.fuelPill}>
+                <Fuel color={colors.brandDeep} size={12} strokeWidth={2.2} />
+                <Text style={s.fuelText}>{perfilTemp.combustible}</Text>
+              </View>
+            )}
           </View>
         </View>
 
-        <View style={styles.warningCard}>
-          <Text style={styles.warningTitle}>Aviso:</Text>
-          <Text style={styles.warningText}>
-            MecanicaYA es orientativa. No reemplaza la revisión de un mecánico
-            certificado ni los servicios de emergencia oficiales.
-          </Text>
+        {/* Aplicación */}
+        <View style={s.sectionLabel}>
+          <Text style={s.sectionLabelText}>APLICACIÓN</Text>
+        </View>
+        <View style={s.card}>
+          {[
+            { label: 'Motor de IA', value: aiModel, Icon: Cpu },
+            { label: 'Almacenamiento', value: 'Solo en tu dispositivo', Icon: ShieldCheck },
+          ].map((item, i, arr) => {
+            const Icon = item.Icon;
+            return (
+              <View key={i} style={[s.aboutRow, i < arr.length - 1 && s.rowBorder]}>
+                <View style={s.aboutLabelRow}>
+                  <View style={s.aboutIconWrap}>
+                    <Icon color={colors.brand} size={14} strokeWidth={2} />
+                  </View>
+                  <Text style={s.rowLabel}>{item.label}</Text>
+                </View>
+                <Text style={s.aboutValue}>{item.value}</Text>
+              </View>
+            );
+          })}
         </View>
 
-        <Pressable style={styles.saveButton} onPress={saveSettings}>
-          <Text style={styles.saveButtonText}>Guardar configuración</Text>
-        </Pressable>
+        {/* Modo Moto */}
+        <View style={s.sectionLabel}>
+          <Text style={s.sectionLabelText}>MODO MOTO</Text>
+        </View>
+
+        {/* Tarjeta de activación */}
+        <TouchableOpacity
+          style={[s.motoCard, phase === 'monitoring' && s.motoCardActive]}
+          activeOpacity={0.88}
+          onPress={phase === 'idle' ? activate : deactivate}
+        >
+          <View style={s.motoCardLeft}>
+            <View style={[s.motoIconWrap, phase === 'monitoring' && s.motoIconWrapActive]}>
+              <Shield color={phase === 'monitoring' ? '#fff' : colors.motoPurple} size={22} strokeWidth={2} />
+            </View>
+            <View style={s.motoTextWrap}>
+              <Text style={[s.motoTitle, phase === 'monitoring' && s.motoTitleActive]}>
+                {phase === 'monitoring' ? 'Monitoreando...' : 'Activar Modo Moto'}
+              </Text>
+              <Text style={[s.motoSub, phase === 'monitoring' && s.motoSubActive]}>
+                {phase === 'monitoring'
+                  ? 'Detectando impactos y caídas'
+                  : 'Detección automática de accidentes'}
+              </Text>
+            </View>
+          </View>
+          <View style={[s.motoToggle, phase === 'monitoring' && s.motoToggleActive]}>
+            <View style={[s.motoToggleDot, phase === 'monitoring' && s.motoToggleDotActive]} />
+          </View>
+        </TouchableOpacity>
+
+        {/* Contacto de emergencia */}
+        <View style={s.card}>
+          <View style={[s.row, s.rowBorder]}>
+            <View style={s.aboutLabelRow}>
+              <View style={s.aboutIconWrap}>
+                <Phone color={colors.motoPurple} size={14} strokeWidth={2} />
+              </View>
+              <Text style={s.rowLabel}>Contacto de emergencia</Text>
+            </View>
+            {!editandoContacto ? (
+              <TouchableOpacity onPress={() => { setContactoTemp(contacto); setEditandoContacto(true); }}>
+                <Text style={s.contactoValue}>{contacto || 'Sin definir'}</Text>
+              </TouchableOpacity>
+            ) : (
+              <TextInput
+                style={s.contactoInput}
+                value={contactoTemp}
+                onChangeText={setContactoTemp}
+                placeholder="+5491112345678"
+                placeholderTextColor={colors.tertiaryText}
+                keyboardType="phone-pad"
+                selectionColor={colors.motoPurple}
+                onBlur={() => { saveContacto(contactoTemp); setEditandoContacto(false); }}
+                autoFocus
+              />
+            )}
+          </View>
+          <View style={s.motoHintRow}>
+            <Text style={s.motoHint}>
+              Número de WhatsApp al que se enviará la alerta. Incluir código de país.
+            </Text>
+          </View>
+        </View>
+
+        {/* Aviso */}
+        <View style={s.disclaimer}>
+          <AlertTriangle color={colors.warnOrange} size={18} strokeWidth={2.2} />
+          <View style={s.disclaimerContent}>
+            <Text style={s.disclaimerTitle}>Aviso importante</Text>
+            <Text style={s.disclaimerText}>
+              MecánicaYA es una herramienta orientativa. No reemplaza la revisión de un mecánico certificado.
+            </Text>
+          </View>
+        </View>
+
       </ScrollView>
-
-      {renderModal()}
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: colors.background,
+const s = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: colors.appBackground },
+  flex: { flex: 1 },
+  header: { paddingHorizontal: 24, paddingTop: 8, paddingBottom: 4 },
+  headerTitle: { fontSize: 26, fontWeight: '800', color: colors.primaryText, letterSpacing: -0.4 },
+  headerSub: { fontSize: 13, color: colors.tertiaryText, marginTop: 2 },
+  scroll: { flex: 1 },
+  scrollContent: { paddingHorizontal: 16, paddingBottom: 40, gap: 10 },
+
+  // Hero oscuro
+  vehicleHero: {
+    backgroundColor: colors.navy,
+    borderRadius: 20,
+    padding: 18,
+    position: 'relative',
+    overflow: 'hidden',
+    marginBottom: 4,
   },
-  container: {
-    paddingHorizontal: spacing.md,
-    paddingTop: spacing.xl,
-    paddingBottom: spacing.xl + spacing.lg,
+  heroDecor: {
+    position: 'absolute',
+    right: -20,
+    top: -30,
   },
-  title: {
-    fontSize: 30,
+  heroTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  heroBadge: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    color: 'rgba(255,255,255,0.65)',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  heroActions: { flexDirection: 'row', gap: 12, alignItems: 'center' },
+  heroCancelText: { fontSize: 13, color: 'rgba(255,255,255,0.6)', fontWeight: '500' },
+  heroSaveBtn: {
+    backgroundColor: colors.brand,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  heroSaveText: { fontSize: 13, fontWeight: '700', color: '#fff' },
+  heroVehicleName: { fontSize: 22, fontWeight: '800', color: '#fff', letterSpacing: -0.3 },
+  heroVehicleSub: { fontSize: 13, color: 'rgba(255,255,255,0.7)', marginTop: 4 },
+
+  sectionLabel: { paddingHorizontal: 4, marginTop: 6 },
+  sectionLabelText: {
+    fontSize: 11,
     fontWeight: '800',
-    color: colors.textPrimary,
-    marginBottom: spacing.md,
+    color: colors.tertiaryText,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
   },
+
   card: {
-    backgroundColor: colors.surface,
-    borderRadius: 22,
-    padding: spacing.md,
-    marginBottom: spacing.md,
-    borderWidth: 1,
-    borderColor: '#EAE6E1',
+    backgroundColor: colors.cardBackground,
+    borderRadius: 16,
     shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 10,
-    elevation: 3,
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
+    shadowOffset: { width: 0, height: 2 },
+    overflow: 'hidden',
   },
-  emergencyCard: {
-    borderColor: colors.motoActive,
-    borderWidth: 1.2,
-  },
-  sectionTitle: {
-    fontSize: 12,
-    fontWeight: '800',
-    letterSpacing: 1,
-    color: '#B29384',
-    marginBottom: spacing.sm,
-  },
-  selectionRow: {
+
+  row: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: '#EDE7E1',
+    paddingHorizontal: 16,
+    height: 52,
   },
-  selectionRowLast: {
-    borderBottomWidth: 0,
-    paddingBottom: 0,
-  },
-  selectionLabel: {
-    flex: 1,
-    fontSize: 16,
-    color: colors.textPrimary,
-  },
-  selectionRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  selectionValue: {
-    fontSize: 16,
-    color: colors.textPrimary,
-    marginRight: 8,
-  },
-  placeholderText: {
-    color: colors.textSecondary,
-  },
-  chevron: {
-    fontSize: 24,
-    color: '#B9ADA5',
-    marginTop: -2,
-  },
-  valueChip: {
-    backgroundColor: '#EFEAE6',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: borderRadius.pill,
-  },
-  valueChipEmpty: {
-    backgroundColor: '#F4F1EE',
-  },
-  valueChipText: {
+  rowBorder: { borderBottomWidth: 1, borderBottomColor: colors.surface2 },
+  rowLabel: { fontSize: 13.5, color: colors.secondaryText, fontWeight: '600' },
+  rowValue: { fontSize: 14, color: colors.primaryText, fontWeight: '700' },
+  rowInput: {
     fontSize: 14,
-    color: '#8A6F63',
+    color: colors.primaryText,
+    textAlign: 'right',
+    flex: 1,
+    marginLeft: 16,
+    borderBottomWidth: 1.5,
+    borderBottomColor: colors.brand,
+    paddingVertical: 4,
     fontWeight: '600',
   },
-  emergencyRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: spacing.md,
-  },
-  avatarCircle: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-    backgroundColor: '#F1EBFF',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: spacing.sm + 2,
-  },
-  avatarIcon: {
-    fontSize: 22,
-    color: colors.motoActive,
-  },
-  emergencyInfo: {
-    flex: 1,
-  },
-  contactNameInput: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: colors.textPrimary,
-    paddingVertical: 0,
-    marginBottom: 2,
-  },
-  phoneInput: {
-    fontSize: 16,
-    color: '#9E8D84',
-    paddingVertical: 0,
-  },
-  editCircle: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: '#F2EDE8',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginLeft: spacing.sm,
-  },
-  editText: {
-    fontSize: 16,
-    color: '#7E6F68',
-    fontWeight: '700',
-  },
-  testButton: {
-    borderWidth: 1.4,
-    borderColor: colors.motoActive,
-    borderRadius: borderRadius.pill,
+
+  fuelSection: {
+    paddingHorizontal: 16,
     paddingVertical: 14,
+    gap: 10,
+  },
+  fuelLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  fuelOptions: { flexDirection: 'row', gap: 8 },
+  fuelOption: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: colors.borderColor,
     alignItems: 'center',
   },
-  testButtonText: {
-    color: colors.motoActive,
-    fontWeight: '800',
-    fontSize: 16,
+  fuelOptionActive: {
+    borderColor: colors.brand,
+    backgroundColor: colors.brandSoft,
   },
-  sensitivityRow: {
+  fuelOptionText: { fontSize: 13, fontWeight: '500', color: colors.secondaryText },
+  fuelOptionTextActive: { color: colors.brand, fontWeight: '700' },
+  fuelPill: {
+    alignSelf: 'flex-start',
     flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: colors.brandSoft,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 100,
+  },
+  fuelText: { fontSize: 13, color: colors.brandDeep, fontWeight: '700' },
+
+  aboutRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  aboutLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  aboutIconWrap: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    backgroundColor: colors.surface2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  aboutValue: { fontSize: 12.5, color: colors.primaryText, fontWeight: '600' },
+
+  disclaimer: {
+    backgroundColor: colors.accentSoft,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#FBE5A0',
+    padding: 14,
+    flexDirection: 'row',
+    gap: 10,
+    alignItems: 'flex-start',
     marginTop: 4,
   },
-  sensitivityButton: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: '#E5DBD4',
-    borderRadius: borderRadius.pill,
-    paddingVertical: 12,
+  disclaimerContent: { flex: 1 },
+  disclaimerTitle: { fontSize: 12.5, fontWeight: '800', color: '#78350F', marginBottom: 4 },
+  disclaimerText: { fontSize: 11.5, color: '#92400E', lineHeight: 18 },
+
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  loadingText: { fontSize: 16, color: colors.primaryText },
+
+  // Modo Moto
+  motoCard: {
+    backgroundColor: colors.cardBackground,
+    borderRadius: 16,
+    padding: 16,
+    flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.surface,
-  },
-  sensitivityButtonSpacing: {
-    marginRight: spacing.sm,
-  },
-  sensitivityButtonActive: {
-    backgroundColor: colors.navy,
-    borderColor: colors.navy,
-  },
-  sensitivityText: {
-    fontSize: 14,
-    color: '#7B6A61',
-    fontWeight: '700',
-  },
-  sensitivityTextActive: {
-    color: colors.surface,
-  },
-  helperText: {
-    fontSize: 13,
-    color: '#B29384',
-    marginTop: spacing.sm + 2,
-  },
-  infoCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 22,
-    padding: spacing.md,
-    marginBottom: spacing.md,
-    borderWidth: 1,
-    borderColor: '#EAE6E1',
+    justifyContent: 'space-between',
+    borderWidth: 1.5,
+    borderColor: colors.borderColor,
     shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 10,
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
     elevation: 2,
+    shadowOffset: { width: 0, height: 2 },
   },
-  appName: {
-    fontSize: 18,
-    fontWeight: '900',
-    color: '#D54B1A',
-    marginBottom: 6,
+  motoCardActive: {
+    backgroundColor: colors.motoPurple,
+    borderColor: colors.motoPurple,
   },
-  appDescription: {
-    fontSize: 14,
-    color: '#A28E84',
-    marginBottom: spacing.md,
-  },
-  infoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: spacing.md - 2,
-  },
-  infoLabel: {
-    fontSize: 15,
-    color: colors.textPrimary,
-  },
-  infoValue: {
-    fontSize: 15,
-    color: colors.textPrimary,
-  },
-  infoValueStrong: {
-    fontSize: 15,
-    color: '#173B2F',
-    fontWeight: '800',
-  },
-  warningCard: {
-    backgroundColor: '#FFFDF9',
-    borderRadius: 18,
-    padding: spacing.md,
-    marginBottom: spacing.md,
-    borderWidth: 1.2,
-    borderColor: '#E76B39',
-  },
-  warningTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#D54B1A',
-    marginBottom: spacing.sm,
-  },
-  warningText: {
-    fontSize: 14,
-    color: '#6C5A50',
-    lineHeight: 24,
-  },
-  saveButton: {
-    backgroundColor: colors.navy,
-    borderRadius: borderRadius.cardLg,
-    paddingVertical: spacing.md,
+  motoCardLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
+  motoIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: colors.purpleSurface,
     alignItems: 'center',
-    marginTop: 2,
-  },
-  saveButtonText: {
-    color: colors.surface,
-    fontSize: 16,
-    fontWeight: '800',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.28)',
     justifyContent: 'center',
-    paddingHorizontal: spacing.lg,
   },
-  modalCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 20,
-    padding: spacing.md,
-    maxHeight: '70%',
+  motoIconWrapActive: { backgroundColor: 'rgba(255,255,255,0.18)' },
+  motoTextWrap: { flex: 1 },
+  motoTitle: { fontSize: 15, fontWeight: '700', color: colors.primaryText },
+  motoTitleActive: { color: '#fff' },
+  motoSub: { fontSize: 12, color: colors.tertiaryText, marginTop: 2 },
+  motoSubActive: { color: 'rgba(255,255,255,0.75)' },
+  motoToggle: {
+    width: 48,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: colors.surface2,
+    justifyContent: 'center',
+    paddingHorizontal: 3,
   },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: colors.textPrimary,
-    marginBottom: spacing.md,
+  motoToggleActive: { backgroundColor: 'rgba(255,255,255,0.3)' },
+  motoToggleDot: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: colors.tertiaryText,
   },
-  modalOption: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+  motoToggleDotActive: {
+    backgroundColor: '#fff',
+    alignSelf: 'flex-end',
   },
-  modalOptionText: {
-    fontSize: 16,
-    color: colors.textPrimary,
+  contactoValue: { fontSize: 13, fontWeight: '600', color: colors.motoPurple },
+  contactoInput: {
+    fontSize: 13,
+    color: colors.primaryText,
+    textAlign: 'right',
+    flex: 1,
+    marginLeft: 16,
+    borderBottomWidth: 1.5,
+    borderBottomColor: colors.motoPurple,
+    paddingVertical: 4,
+    fontWeight: '600',
   },
-  modalOptionTextSelected: {
-    fontWeight: '800',
-    color: colors.navy,
-  },
-  checkIcon: {
-    fontSize: 18,
-    color: colors.navy,
-    fontWeight: '800',
-  },
-  modalCloseButton: {
-    marginTop: spacing.md,
-    backgroundColor: colors.navy,
-    borderRadius: borderRadius.pill,
-    paddingVertical: 12,
-    alignItems: 'center',
-  },
-  modalCloseButtonText: {
-    color: colors.surface,
-    fontSize: 15,
-    fontWeight: '800',
-  },
+  motoHintRow: { paddingHorizontal: 16, paddingBottom: 14 },
+  motoHint: { fontSize: 11.5, color: colors.tertiaryText, lineHeight: 17 },
+
 });

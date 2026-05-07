@@ -1,41 +1,101 @@
-# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
-
-# dependencies
+# ─── Dependencies ─────────────────────────────────────────────────────────────
 node_modules/
+.pnp
+.pnp.js
 
-# Expo
+# ─── Expo ─────────────────────────────────────────────────────────────────────
 .expo/
 dist/
 web-build/
 expo-env.d.ts
 
-# Native
+# EAS — credenciales y artefactos de build
+.easignore
+*.apk
+*.aab
+*.ipa
+
+# ─── React Native / Metro ─────────────────────────────────────────────────────
+.metro-health-check*
+.metro/
+metro.config.js.bak
+
+# Carpetas nativas generadas por EAS / prebuild
+/ios
+/android
 .kotlin/
+
+# ─── Certificados y claves nativas ───────────────────────────────────────────
 *.orig.*
 *.jks
 *.p8
 *.p12
 *.key
+*.keystore
 *.mobileprovision
+*.cer
+google-services.json
+GoogleService-Info.plist
 
-# Metro
-.metro-health-check*
-
-# debug
-npm-debug.*
-yarn-debug.*
-yarn-error.*
-
-# macOS
-.DS_Store
-*.pem
-
-# local env files
-.env*.local
-
-# typescript
+# ─── TypeScript ───────────────────────────────────────────────────────────────
 *.tsbuildinfo
+*.d.ts.map
 
-# generated native folders
-/ios
-/android
+# ─── Variables de entorno ────────────────────────────────────────────────────
+.env
+.env.local
+.env.development
+.env.production
+.env*.local
+server/.env
+server/.env.local
+
+# ─── Server (Node / Express) ─────────────────────────────────────────────────
+server/dist/
+server/build/
+server/uploads/
+server/logs/
+server/*.log
+
+# ─── Logs ─────────────────────────────────────────────────────────────────────
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# ─── Sistema operativo ────────────────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# ─── Editores ─────────────────────────────────────────────────────────────────
+.vscode/settings.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+*.swp
+
+# ─── Testing ──────────────────────────────────────────────────────────────────
+coverage/
+.nyc_output/
+
+# ─── Herramientas de desarrollo ───────────────────────────────────────────────
+.claude/
+SDD_CONTEXT.md
+
+# ─── Miscelánea ───────────────────────────────────────────────────────────────
+*.pem
+.cache/
+tmp/
+temp/

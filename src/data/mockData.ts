@@ -1,7 +1,11 @@
+/**
+ * mockData.ts - Datos de prueba para cuando el backend no esta disponible.
+ * Contiene talleres ficticios y diagnosticos predefinidos que se usan
+ * como respaldo cuando Ollama o el servicio de Overpass no responden.
+ */
 import { DiagnosticoMock } from '../types/models';
 
-// src/data/mockData.ts
-
+/** Talleres mecanicos de ejemplo con coordenadas de Santa Cruz, Bolivia */
 export const mockTalleres = [
   {
     id: '1',
