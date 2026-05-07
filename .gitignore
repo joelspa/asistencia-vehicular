@@ -93,6 +93,8 @@ coverage/
 # ─── Herramientas de desarrollo ───────────────────────────────────────────────
 .claude/
 SDD_CONTEXT.md
+APP_CONTEXT.md
+modo moto.md
 
 # ─── Miscelánea ───────────────────────────────────────────────────────────────
 *.pem
