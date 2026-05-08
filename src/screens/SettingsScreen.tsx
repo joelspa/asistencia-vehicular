@@ -112,7 +112,7 @@ export default function SettingsScreen() {
             <Text style={s.heroVehicleSub}>
               {perfilTemp.anio || '—'} · {perfilTemp.combustible}
             </Text>
-            <Text style={s.heroHint}>Tocá cualquier campo para editar</Text>
+            <Text style={s.heroHint}>Toca cualquier campo para editar</Text>
           </View>
 
           {/* Datos del vehículo */}

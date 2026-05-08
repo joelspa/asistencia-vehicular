@@ -271,7 +271,7 @@ export default function HomeScreen() {
 
           <View style={s.chipsSection}>
             <View style={s.chipsSectionHeader}>
-              <Text style={s.chipsLabel}>Elegí un síntoma</Text>
+              <Text style={s.chipsLabel}>Elige un síntoma</Text>
             </View>
             <View style={s.chipsGrid}>
               {QUICK_SYMPTOMS.map((item) => (
@@ -305,7 +305,7 @@ export default function HomeScreen() {
             />
             {!hasInput && !inputError && (
               <Text style={s.inputHint}>
-                Incluí ruidos, vibraciones, olores, cuándo ocurre y desde cuándo.
+                Incluye ruidos, vibraciones, olores, cuándo ocurre y desde cuándo.
               </Text>
             )}
             {inputError ? <Text style={s.inputError}>{inputError}</Text> : null}

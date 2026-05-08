@@ -9,7 +9,7 @@ export const ERROR_MESSAGES = {
     'El servidor de diagnóstico no está disponible en este momento. Por favor, revisa tu conexión o intenta de nuevo más tarde.',
   
   NETWORK_ERROR:
-    'Error de conexión. Verifica tu conexión a Internet y tenta nuevamente.',
+    'Error de conexión. Verifica tu conexión a Internet e intenta nuevamente.',
   
   LOCATION_PERMISSION_DENIED:
     'Se necesita permiso de ubicación para mostrar talleres cercanos.',

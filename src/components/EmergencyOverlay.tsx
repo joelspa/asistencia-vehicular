@@ -35,7 +35,7 @@ export function EmergencyOverlay({ visible, countdown, onCancel }: Props) {
                     </Animated.View>
 
                     <Text style={s.title}>POSIBLE ACCIDENTE{'\n'}DETECTADO</Text>
-                    <Text style={s.hint}>Si estás bien, cancelá ahora.</Text>
+                    <Text style={s.hint}>Si estás bien, cancela ahora.</Text>
                 </View>
 
                 <View style={s.countdownSection}>
