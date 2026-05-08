@@ -16,7 +16,9 @@ import {
   Navigation, MapPin, Wrench, ChevronUp,
   Zap, Disc, StopCircle, Paintbrush, Package, Truck,
 } from 'lucide-react-native';
+import { useRoute, RouteProp } from '@react-navigation/native';
 import { useTheme } from '../context/ThemeContext';
+import { TabParamList } from '../types/navigation';
 import { mockTalleres } from '../data/mockData';
 import { generateLeafletMapHtml } from '../constants/html';
 import { getApiBaseUrl } from '../constants/api';
@@ -63,6 +65,8 @@ export default function MapScreen() {
   const { colors, isDark } = useTheme();
   const insets = useSafeAreaInsets();
   const webViewRef = useRef<WebView>(null);
+  const route = useRoute<RouteProp<TabParamList, 'Mapa'>>();
+  const especialidadesParam = route.params?.especialidades;
 
   const [talleres, setTalleres] = useState<TallerDisplay[]>([]);
   const [loading, setLoading] = useState(true);
@@ -136,6 +140,17 @@ export default function MapScreen() {
     talleres.forEach(t => seen.add(getCategoryKey(t.especialidad)));
     return [...seen];
   }, [talleres]);
+
+  // Primera categoría del diagnóstico que tenga talleres reales; null = mostrar todos
+  const autoFilterCat = useMemo<CategoryKey | null>(() => {
+    if (!especialidadesParam?.length || !availableCategories.length) return null;
+    const available = new Set(availableCategories);
+    return especialidadesParam.map(getCategoryKey).find(cat => available.has(cat)) ?? null;
+  }, [especialidadesParam, availableCategories]);
+
+  useEffect(() => {
+    if (autoFilterCat) setActiveFilter(autoFilterCat);
+  }, [autoFilterCat]);
 
   const filteredTalleres = useMemo(() =>
     activeFilter ? talleres.filter(t => getCategoryKey(t.especialidad) === activeFilter) : talleres,
@@ -279,6 +294,16 @@ export default function MapScreen() {
             javaScriptEnabled
             domStorageEnabled
             scrollEnabled={false}
+            onLoadEnd={() => {
+              if (!especialidadesParam?.length) return;
+              const available = new Set(talleres.map(t => getCategoryKey(t.especialidad)));
+              const match = especialidadesParam.map(getCategoryKey).find(cat => available.has(cat));
+              if (match) {
+                webViewRef.current?.injectJavaScript(
+                  `if (window.filterMarkers) window.filterMarkers('${match}'); true;`
+                );
+              }
+            }}
             onMessage={(e) => {
               if (e.nativeEvent.data === 'collapse') collapseSheet();
             }}
