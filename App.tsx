@@ -8,9 +8,11 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { View, StyleSheet } from 'react-native';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { RootStackParamList, TabParamList } from './src/types/navigation';
 
 import { ModoMotoProvider } from './src/context/ModoMotoContext';
+import { ThemeProvider, useColors } from './src/context/ThemeContext';
 import HomeScreen from './src/screens/HomeScreen';
 import LoadingScreen from './src/screens/LoadingScreen';
 import ResultScreen from './src/screens/ResultScreen';
@@ -23,9 +25,6 @@ import { Sparkles, Clock, MapPin, Car } from 'lucide-react-native';
 const Tab = createBottomTabNavigator<TabParamList>();
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
-const BRAND = '#2563EB';
-const INACTIVE = '#8896A8';
-
 const TAB_ICONS: Record<string, typeof Sparkles> = {
   Inicio: Sparkles,
   Mapa: MapPin,
@@ -34,20 +33,22 @@ const TAB_ICONS: Record<string, typeof Sparkles> = {
 };
 
 function TabIcon({ name, focused }: { name: string; focused: boolean }) {
+  const colors = useColors();
   const IconComp = TAB_ICONS[name] ?? Sparkles;
   return (
     <View style={tabStyles.iconWrap}>
       <IconComp
-        color={focused ? BRAND : INACTIVE}
+        color={focused ? colors.brand : colors.tertiaryText}
         size={22}
         strokeWidth={focused ? 2.2 : 1.7}
       />
-      {focused && <View style={tabStyles.indicator} />}
+      {focused && <View style={[tabStyles.indicator, { backgroundColor: colors.brand }]} />}
     </View>
   );
 }
 
 function MainTabs() {
+  const colors = useColors();
   const insets = useSafeAreaInsets();
   return (
     <Tab.Navigator
@@ -55,7 +56,15 @@ function MainTabs() {
         headerShown: false,
         tabBarIcon: ({ focused }) => <TabIcon name={route.name} focused={focused} />,
         tabBarShowLabel: false,
-        tabBarStyle: [tabStyles.tabBar, { height: 64 + insets.bottom, paddingBottom: insets.bottom }],
+        tabBarStyle: [
+          tabStyles.tabBar,
+          {
+            height: 64 + insets.bottom,
+            paddingBottom: insets.bottom,
+            backgroundColor: colors.cardBackground,
+            borderTopColor: colors.borderColor,
+          },
+        ],
         tabBarItemStyle: { paddingVertical: 0, height: '100%' },
         tabBarIconStyle: { flex: 1 },
       })}
@@ -70,31 +79,33 @@ function MainTabs() {
 
 export default function App() {
   return (
-    <SafeAreaProvider>
-      <NavigationContainer>
-        <ModoMotoProvider>
-        <Stack.Navigator screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="MainTabs" component={MainTabs} />
-          <Stack.Screen name="Carga" component={LoadingScreen} />
-          <Stack.Screen name="Resultado" component={ResultScreen} />
-        </Stack.Navigator>
-        </ModoMotoProvider>
-      </NavigationContainer>
-    </SafeAreaProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <ThemeProvider>
+        <SafeAreaProvider>
+          <NavigationContainer>
+            <ModoMotoProvider>
+              <Stack.Navigator screenOptions={{ headerShown: false }}>
+                <Stack.Screen name="MainTabs" component={MainTabs} />
+                <Stack.Screen name="Carga" component={LoadingScreen} />
+                <Stack.Screen name="Resultado" component={ResultScreen} />
+              </Stack.Navigator>
+            </ModoMotoProvider>
+          </NavigationContainer>
+        </SafeAreaProvider>
+      </ThemeProvider>
+    </GestureHandlerRootView>
   );
 }
 
 const tabStyles = StyleSheet.create({
   tabBar: {
     height: 64,
-    backgroundColor: 'rgba(255,255,255,0.96)',
     borderTopWidth: 1,
-    borderTopColor: '#DEE5EE',
     paddingHorizontal: 8,
     elevation: 12,
-    shadowColor: '#0E1A2B',
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.06,
+    shadowOpacity: 0.08,
     shadowRadius: 16,
   },
   iconWrap: {
@@ -107,7 +118,6 @@ const tabStyles = StyleSheet.create({
     width: 4,
     height: 4,
     borderRadius: 2,
-    backgroundColor: BRAND,
     marginTop: 1,
   },
 });

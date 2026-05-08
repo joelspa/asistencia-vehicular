@@ -1,14 +1,22 @@
-/** Mapa Leaflet con talleres cercanos y panel inferior arrastrable. */
-import React, { useEffect, useState, useRef } from 'react';
+/** Mapa Leaflet con talleres cercanos, filtros por categoría y panel inferior arrastrable. */
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import {
-  View, Text, ScrollView, StyleSheet, ActivityIndicator, Dimensions,
-  Animated, PanResponder, TouchableOpacity, Linking,
+  View, Text, StyleSheet, ActivityIndicator, Dimensions,
+  TouchableOpacity, Linking, ScrollView,
 } from 'react-native';
+import Animated, {
+  useSharedValue, useAnimatedStyle, withSpring, runOnJS,
+  useAnimatedScrollHandler,
+} from 'react-native-reanimated';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
 import * as Location from 'expo-location';
-import { Navigation, MapPin, Settings, Wrench, ChevronUp } from 'lucide-react-native';
-import { colors } from '../theme/colors';
+import {
+  Navigation, MapPin, Wrench, ChevronUp,
+  Zap, Disc, StopCircle, Paintbrush, Package, Truck,
+} from 'lucide-react-native';
+import { useTheme } from '../context/ThemeContext';
 import { mockTalleres } from '../data/mockData';
 import { generateLeafletMapHtml } from '../constants/html';
 import { getApiBaseUrl } from '../constants/api';
@@ -16,6 +24,8 @@ import { getApiBaseUrl } from '../constants/api';
 const SCREEN_HEIGHT = Dimensions.get('window').height;
 const SHEET_COLLAPSED = 220;
 const SHEET_EXPANDED = SCREEN_HEIGHT * 0.65;
+const SHEET_COLLAPSED_OFFSET = SHEET_EXPANDED - SHEET_COLLAPSED;
+const SPRING_CONFIG = { damping: 22, stiffness: 220, mass: 0.8 };
 
 interface TallerDisplay {
   id: string;
@@ -26,42 +36,116 @@ interface TallerDisplay {
   longitud: number;
 }
 
+type CategoryKey = 'general' | 'electr' | 'llanta' | 'freno' | 'pintura' | 'repuesto' | 'grua';
+
+const CATEGORY_CONFIG: Record<CategoryKey, { label: string; Icon: typeof Wrench; color: string }> = {
+  general:  { label: 'Mecánica',  Icon: Wrench,      color: '#2563EB' },
+  electr:   { label: 'Eléctrico', Icon: Zap,         color: '#D97706' },
+  llanta:   { label: 'Llantas',   Icon: Disc,        color: '#15803D' },
+  freno:    { label: 'Frenos',    Icon: StopCircle,  color: '#DC2626' },
+  pintura:  { label: 'Pintura',   Icon: Paintbrush,  color: '#6D28D9' },
+  repuesto: { label: 'Repuestos', Icon: Package,     color: '#EA580C' },
+  grua:     { label: 'Grúa',      Icon: Truck,       color: '#0E7490' },
+};
+
+function getCategoryKey(especialidad: string): CategoryKey {
+  const e = especialidad.toLowerCase();
+  if (e.includes('electr'))                                         return 'electr';
+  if (e.includes('llanta') || e.includes('neum') || e.includes('rueda')) return 'llanta';
+  if (e.includes('freno'))                                          return 'freno';
+  if (e.includes('carrocer') || e.includes('pintur') || e.includes('chapa')) return 'pintura';
+  if (e.includes('repuesto') || e.includes('pieza') || e.includes('acceso')) return 'repuesto';
+  if (e.includes('grua') || e.includes('rescate') || e.includes('asistencia')) return 'grua';
+  return 'general';
+}
+
 export default function MapScreen() {
+  const { colors, isDark } = useTheme();
   const insets = useSafeAreaInsets();
+  const webViewRef = useRef<WebView>(null);
+
   const [talleres, setTalleres] = useState<TallerDisplay[]>([]);
   const [loading, setLoading] = useState(true);
   const [mapHtml, setMapHtml] = useState<string | null>(null);
   const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [sheetExpanded, setSheetExpanded] = useState(false);
+  const [activeFilter, setActiveFilter] = useState<CategoryKey | null>(null);
 
-  const sheetHeight = useRef(new Animated.Value(SHEET_COLLAPSED)).current;
+  const translateY = useSharedValue(SHEET_COLLAPSED_OFFSET);
+  const startY = useSharedValue(SHEET_COLLAPSED_OFFSET);
+  const scrollY = useSharedValue(0);
 
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: () => true,
-      onPanResponderRelease: (_, gestureState) => {
-        if (gestureState.dy < -50) expandSheet();
-        else if (gestureState.dy > 50) collapseSheet();
-      },
+  const scrollHandler = useAnimatedScrollHandler({
+    onScroll: (e) => { scrollY.value = e.contentOffset.y; },
+  });
+
+  const applySheetSnap = (goExpand: boolean) => setSheetExpanded(goExpand);
+
+  const handleGesture = Gesture.Pan()
+    .onStart(() => { startY.value = translateY.value; })
+    .onUpdate((e) => {
+      translateY.value = Math.max(0, Math.min(SHEET_COLLAPSED_OFFSET, startY.value + e.translationY));
     })
-  ).current;
+    .onEnd((e) => {
+      const goExpand = e.velocityY < -500 || translateY.value < SHEET_COLLAPSED_OFFSET / 2;
+      translateY.value = withSpring(goExpand ? 0 : SHEET_COLLAPSED_OFFSET, SPRING_CONFIG);
+      runOnJS(applySheetSnap)(goExpand);
+    });
+
+  const scrollCollapseGesture = Gesture.Pan()
+    .onStart(() => { startY.value = translateY.value; })
+    .onUpdate((e) => {
+      if (e.translationY > 0 && scrollY.value <= 0)
+        translateY.value = Math.min(SHEET_COLLAPSED_OFFSET, startY.value + e.translationY);
+    })
+    .onEnd((e) => {
+      if (translateY.value > SHEET_COLLAPSED_OFFSET * 0.25 || e.velocityY > 600) {
+        translateY.value = withSpring(SHEET_COLLAPSED_OFFSET, SPRING_CONFIG);
+        runOnJS(applySheetSnap)(false);
+      } else {
+        translateY.value = withSpring(0, SPRING_CONFIG);
+        runOnJS(applySheetSnap)(true);
+      }
+    });
+
+  const bodyGesture = Gesture.Simultaneous(scrollCollapseGesture, Gesture.Native());
+
+  const animatedSheetStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: translateY.value }],
+  }));
 
   const expandSheet = () => {
     setSheetExpanded(true);
-    Animated.spring(sheetHeight, { toValue: SHEET_EXPANDED, useNativeDriver: false, friction: 8 }).start();
+    translateY.value = withSpring(0, SPRING_CONFIG);
   };
 
   const collapseSheet = () => {
     setSheetExpanded(false);
-    Animated.spring(sheetHeight, { toValue: SHEET_COLLAPSED, useNativeDriver: false, friction: 8 }).start();
+    translateY.value = withSpring(SHEET_COLLAPSED_OFFSET, SPRING_CONFIG);
   };
+
+  const handleFilter = (cat: CategoryKey | null) => {
+    setActiveFilter(cat);
+    webViewRef.current?.injectJavaScript(
+      `if (window.filterMarkers) window.filterMarkers('${cat ?? 'all'}'); true;`
+    );
+  };
+
+  const availableCategories = useMemo<CategoryKey[]>(() => {
+    const seen = new Set<CategoryKey>();
+    talleres.forEach(t => seen.add(getCategoryKey(t.especialidad)));
+    return [...seen];
+  }, [talleres]);
+
+  const filteredTalleres = useMemo(() =>
+    activeFilter ? talleres.filter(t => getCategoryKey(t.especialidad) === activeFilter) : talleres,
+    [talleres, activeFilter]
+  );
 
   const abrirRuta = (taller: TallerDisplay) => {
     const origin = userCoords ? `${userCoords.lat},${userCoords.lng}` : '';
     const dest = `${taller.latitud},${taller.longitud}`;
-    const url = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${dest}&travelmode=driving`;
-    Linking.openURL(url);
+    Linking.openURL(`https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${dest}&travelmode=driving`);
   };
 
   useEffect(() => { inicializarMapa(); }, []);
@@ -69,8 +153,7 @@ export default function MapScreen() {
   async function inicializarMapa() {
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
-      let lat = -17.7863;
-      let lng = -63.1812;
+      let lat = -17.7863, lng = -63.1812;
       if (status === 'granted') {
         const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
         lat = loc.coords.latitude;
@@ -78,7 +161,7 @@ export default function MapScreen() {
       }
       setUserCoords({ lat, lng });
 
-      let talleresParaMapa: { nombre: string; latitud: number; longitud: number }[] = [];
+      let talleresParaMapa: { nombre: string; latitud: number; longitud: number; especialidad?: string }[] = [];
       try {
         const res = await fetch(`${getApiBaseUrl()}/talleres?lat=${lat}&lng=${lng}`);
         const data = await res.json();
@@ -90,30 +173,116 @@ export default function MapScreen() {
             especialidad: t.especialidad || 'General',
             latitud: t.latitud, longitud: t.longitud,
           })));
-        } else throw new Error('Sin talleres');
+        } else throw new Error();
       } catch {
-        talleresParaMapa = mockTalleres.map((t) => ({
+        talleresParaMapa = mockTalleres.map(t => ({
           nombre: t.nombre, latitud: t.coordenadas.lat, longitud: t.coordenadas.lng,
+          especialidad: t.especialidad,
         }));
-        setTalleres(mockTalleres.map((t) => ({
+        setTalleres(mockTalleres.map(t => ({
           id: t.id, nombre: t.nombre, distancia: t.distancia,
-          especialidad: t.especialidad.split(' ')[0],
-          latitud: t.coordenadas.lat, longitud: t.coordenadas.lng,
+          especialidad: t.especialidad, latitud: t.coordenadas.lat, longitud: t.coordenadas.lng,
         })));
       }
-      setMapHtml(generateLeafletMapHtml(lat, lng, insets.top + 8, talleresParaMapa));
-    } catch (error) {
-      console.error('Error al inicializar mapa:', error);
+      setMapHtml(generateLeafletMapHtml(lat, lng, insets.top + 8, talleresParaMapa, isDark));
+    } catch (e) {
+      console.error('Error al inicializar mapa:', e);
     } finally {
       setLoading(false);
     }
   }
 
+  const s = useMemo(() => StyleSheet.create({
+    screen: { flex: 1, backgroundColor: colors.appBackground },
+    mapArea: { flex: 1 },
+    webview: { flex: 1 },
+    mapPlaceholder: {
+      flex: 1, alignItems: 'center', justifyContent: 'center',
+      backgroundColor: isDark ? '#1D2136' : '#DDE6F0',
+    },
+    loadingText: { marginTop: 12, fontSize: 14, color: colors.secondaryText },
+
+    sheet: {
+      position: 'absolute', bottom: 0, left: 0, right: 0,
+      height: SHEET_EXPANDED,
+      backgroundColor: colors.cardBackground,
+      borderTopLeftRadius: 24, borderTopRightRadius: 24,
+      elevation: 24,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: -8 },
+      shadowOpacity: isDark ? 0.4 : 0.12,
+      shadowRadius: 20,
+    },
+    handleArea: { alignItems: 'center', paddingTop: 10, paddingBottom: 6 },
+    dragHandle: { width: 40, height: 4, backgroundColor: colors.borderColor, borderRadius: 2 },
+
+    // Filtros
+    filterScroll: { maxHeight: 44 },
+    filterContent: {
+      paddingHorizontal: 16, paddingBottom: 8, gap: 8, flexDirection: 'row', alignItems: 'center',
+    },
+    filterChip: {
+      flexDirection: 'row', alignItems: 'center', gap: 5,
+      paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999,
+      borderWidth: 1.5, borderColor: colors.borderColor,
+      backgroundColor: colors.cardBackground,
+    },
+    filterChipText: { fontSize: 12, fontWeight: '600', color: colors.secondaryText },
+
+    sheetHeader: {
+      flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+      paddingHorizontal: 20, marginBottom: 8,
+    },
+    sheetTitle: { fontSize: 15, fontWeight: '800', color: colors.primaryText },
+    sheetSub: { fontSize: 11.5, color: colors.tertiaryText, marginTop: 2 },
+    expandToggle: {
+      width: 36, height: 36, borderRadius: 10,
+      backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center',
+    },
+
+    sheetScroll: { flex: 1, paddingHorizontal: 16 },
+    tallerCard: {
+      flexDirection: 'row', alignItems: 'center',
+      paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.surface2, gap: 12,
+    },
+    tallerIconWrap: {
+      width: 36, height: 36, borderRadius: 10,
+      alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+    },
+    tallerInfo: { flex: 1 },
+    tallerName: { fontSize: 14.5, fontWeight: '700', color: colors.primaryText, marginBottom: 5 },
+    tallerMeta: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+    tallerDist: { fontSize: 12, color: colors.tertiaryText, fontWeight: '500' },
+    tallerBadge: {
+      backgroundColor: colors.surface2, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 100,
+    },
+    tallerBadgeText: { fontSize: 11, color: colors.secondaryText, fontWeight: '600' },
+    routeBtn: {
+      backgroundColor: colors.navy, paddingHorizontal: 14, paddingVertical: 10,
+      borderRadius: 10, flexDirection: 'row', alignItems: 'center', gap: 5,
+      elevation: 2, shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 4,
+    },
+    routeBtnText: { fontSize: 13, fontWeight: '700', color: '#fff' },
+    emptyFilter: { alignItems: 'center', paddingTop: 32, gap: 8 },
+    emptyFilterText: { fontSize: 14, color: colors.tertiaryText, fontWeight: '500' },
+  }), [colors, isDark]);
+
   return (
     <View style={s.screen}>
       <View style={s.mapArea}>
         {mapHtml ? (
-          <WebView source={{ html: mapHtml }} style={s.webview} javaScriptEnabled domStorageEnabled scrollEnabled={false} />
+          <WebView
+            ref={webViewRef}
+            source={{ html: mapHtml }}
+            style={s.webview}
+            javaScriptEnabled
+            domStorageEnabled
+            scrollEnabled={false}
+            onMessage={(e) => {
+              if (e.nativeEvent.data === 'collapse') collapseSheet();
+            }}
+          />
         ) : (
           <View style={s.mapPlaceholder}>
             <ActivityIndicator size="large" color={colors.brand} />
@@ -122,17 +291,58 @@ export default function MapScreen() {
         )}
       </View>
 
-      {/* Bottom sheet */}
-      <Animated.View style={[s.sheet, { height: sheetHeight }]}>
+      <Animated.View style={[s.sheet, animatedSheetStyle]}>
         {/* Handle */}
-        <View {...panResponder.panHandlers} style={s.handleArea}>
-          <View style={s.dragHandle} />
-        </View>
+        <GestureDetector gesture={handleGesture}>
+          <View style={s.handleArea}>
+            <View style={s.dragHandle} />
+          </View>
+        </GestureDetector>
+
+        {/* Filtros por categoría */}
+        {availableCategories.length > 1 && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={s.filterScroll}
+            contentContainerStyle={s.filterContent}
+          >
+            <TouchableOpacity
+              style={[s.filterChip, !activeFilter && { backgroundColor: colors.brand, borderColor: colors.brand }]}
+              onPress={() => handleFilter(null)}
+              activeOpacity={0.8}
+            >
+              <Text style={[s.filterChipText, !activeFilter && { color: '#fff', fontWeight: '700' }]}>
+                Todos
+              </Text>
+            </TouchableOpacity>
+            {availableCategories.map(cat => {
+              const cfg = CATEGORY_CONFIG[cat];
+              const active = activeFilter === cat;
+              return (
+                <TouchableOpacity
+                  key={cat}
+                  style={[s.filterChip, active && { backgroundColor: cfg.color, borderColor: cfg.color }]}
+                  onPress={() => handleFilter(active ? null : cat)}
+                  activeOpacity={0.8}
+                >
+                  <cfg.Icon color={active ? '#fff' : cfg.color} size={12} strokeWidth={2.5} />
+                  <Text style={[s.filterChipText, active && { color: '#fff', fontWeight: '700' }]}>
+                    {cfg.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        )}
 
         {/* Header */}
         <View style={s.sheetHeader}>
           <View>
-            <Text style={s.sheetTitle}>{talleres.length} talleres cercanos</Text>
+            <Text style={s.sheetTitle}>
+              {filteredTalleres.length} taller{filteredTalleres.length !== 1 ? 'es' : ''}
+              {activeFilter ? ` · ${CATEGORY_CONFIG[activeFilter].label}` : ' cercanos'}
+            </Text>
             <Text style={s.sheetSub}>Ordenados por distancia</Text>
           </View>
           <TouchableOpacity
@@ -151,124 +361,47 @@ export default function MapScreen() {
         {loading ? (
           <ActivityIndicator color={colors.brand} style={{ marginTop: 24 }} />
         ) : (
-          <ScrollView style={s.sheetScroll} showsVerticalScrollIndicator={false} nestedScrollEnabled>
-            {talleres.map((t) => (
-              <View key={t.id} style={s.tallerCard}>
-                <View style={s.tallerIconWrap}>
-                  <Wrench color={colors.brand} size={16} strokeWidth={2.2} />
+          <GestureDetector gesture={bodyGesture}>
+            <Animated.ScrollView
+              style={s.sheetScroll}
+              showsVerticalScrollIndicator={false}
+              nestedScrollEnabled
+              scrollEventThrottle={16}
+              onScroll={scrollHandler}
+            >
+              {filteredTalleres.length === 0 ? (
+                <View style={s.emptyFilter}>
+                  <Text style={s.emptyFilterText}>Sin talleres en esta categoría</Text>
                 </View>
-                <View style={s.tallerInfo}>
-                  <Text style={s.tallerName} numberOfLines={1}>{t.nombre}</Text>
-                  <View style={s.tallerMeta}>
-                    <MapPin color={colors.tertiaryText} size={11} />
-                    <Text style={s.tallerDist}>{t.distancia}</Text>
-                    <View style={s.tallerBadge}>
-                      <Text style={s.tallerBadgeText}>{t.especialidad}</Text>
+              ) : filteredTalleres.map((t) => {
+                const cat = getCategoryKey(t.especialidad);
+                const cfg = CATEGORY_CONFIG[cat];
+                return (
+                  <View key={t.id} style={s.tallerCard}>
+                    <View style={[s.tallerIconWrap, { backgroundColor: `${cfg.color}22` }]}>
+                      <cfg.Icon color={cfg.color} size={16} strokeWidth={2.2} />
                     </View>
+                    <View style={s.tallerInfo}>
+                      <Text style={s.tallerName} numberOfLines={1}>{t.nombre}</Text>
+                      <View style={s.tallerMeta}>
+                        <MapPin color={colors.tertiaryText} size={11} />
+                        <Text style={s.tallerDist}>{t.distancia}</Text>
+                        <View style={s.tallerBadge}>
+                          <Text style={s.tallerBadgeText}>{t.especialidad}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <TouchableOpacity style={s.routeBtn} onPress={() => abrirRuta(t)} activeOpacity={0.8}>
+                      <Navigation color="#fff" size={13} strokeWidth={2.2} />
+                      <Text style={s.routeBtnText}>Ir</Text>
+                    </TouchableOpacity>
                   </View>
-                </View>
-                <TouchableOpacity style={s.routeBtn} onPress={() => abrirRuta(t)} activeOpacity={0.8}>
-                  <Navigation color="#fff" size={13} strokeWidth={2.2} />
-                  <Text style={s.routeBtnText}>Ir</Text>
-                </TouchableOpacity>
-              </View>
-            ))}
-          </ScrollView>
+                );
+              })}
+            </Animated.ScrollView>
+          </GestureDetector>
         )}
       </Animated.View>
     </View>
   );
 }
-
-const s = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.appBackground },
-  mapArea: { flex: 1 },
-  webview: { flex: 1 },
-  mapPlaceholder: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#DDE6F0',
-  },
-  loadingText: { marginTop: 12, fontSize: 14, color: colors.secondaryText },
-
-  sheet: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: colors.cardBackground,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    elevation: 24,
-    shadowColor: colors.navy,
-    shadowOffset: { width: 0, height: -8 },
-    shadowOpacity: 0.12,
-    shadowRadius: 20,
-  },
-  handleArea: { alignItems: 'center', paddingTop: 10, paddingBottom: 8 },
-  dragHandle: { width: 40, height: 4, backgroundColor: colors.borderColor, borderRadius: 2 },
-
-  sheetHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    marginBottom: 10,
-  },
-  sheetTitle: { fontSize: 15, fontWeight: '800', color: colors.primaryText },
-  sheetSub: { fontSize: 11.5, color: colors.tertiaryText, marginTop: 2 },
-  expandToggle: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: colors.surface2,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  sheetScroll: { flex: 1, paddingHorizontal: 16 },
-  tallerCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.surface2,
-    gap: 12,
-  },
-  tallerIconWrap: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: colors.brandSoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-  },
-  tallerInfo: { flex: 1 },
-  tallerName: { fontSize: 14.5, fontWeight: '700', color: colors.primaryText, marginBottom: 5 },
-  tallerMeta: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  tallerDist: { fontSize: 12, color: colors.tertiaryText, fontWeight: '500' },
-  tallerBadge: {
-    backgroundColor: colors.surface2,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 100,
-  },
-  tallerBadgeText: { fontSize: 11, color: colors.secondaryText, fontWeight: '600' },
-  routeBtn: {
-    backgroundColor: colors.navy,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    elevation: 2,
-    shadowColor: colors.navy,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-  },
-  routeBtnText: { fontSize: 13, fontWeight: '700', color: '#fff' },
-});

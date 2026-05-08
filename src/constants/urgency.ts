@@ -22,7 +22,7 @@ export const urgencyConfigs: Record<UrgencyLevel, UrgencyConfig> = {
     badgeColor: '#DC2626',
     label: 'Falla Crítica',
     hint: 'Detenga el vehículo de inmediato',
-    icon: '⚠️',
+    icon: 'alert-triangle',
     surfaceColor: '#FEE2E2',
   },
   moderada: {
@@ -31,7 +31,7 @@ export const urgencyConfigs: Record<UrgencyLevel, UrgencyConfig> = {
     badgeColor: '#D97706',
     label: 'Falla Moderada',
     hint: 'Atienda antes de 48 horas',
-    icon: '⚡',
+    icon: 'zap',
     surfaceColor: '#FEF3C7',
   },
   leve: {
@@ -40,7 +40,7 @@ export const urgencyConfigs: Record<UrgencyLevel, UrgencyConfig> = {
     badgeColor: '#15803D',
     label: 'Falla Leve',
     hint: 'Puede continuar circulando',
-    icon: 'ℹ️',
+    icon: 'info',
     surfaceColor: '#DCFCE7',
   },
 };
