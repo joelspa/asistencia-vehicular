@@ -1,12 +1,12 @@
 /** Pantalla de perfil del vehículo y configuración del motor de IA. */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, TextInput, StyleSheet, Alert,
   KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
-  Car, Fuel, AlertTriangle, ShieldCheck, Cpu, Edit2, Phone, Shield,
+  Car, Fuel, AlertTriangle, ShieldCheck, Cpu, Phone, Shield, ChevronRight,
 } from 'lucide-react-native';
 import { colors } from '../theme/colors';
 import { useVehicleProfile } from '../hooks/useVehicleProfile';
@@ -16,18 +16,21 @@ import { useModoMotoContext } from '../context/ModoMotoContext';
 
 const FUEL_OPTIONS = ['Gasolina', 'Diesel', 'Gas'];
 
+type VehicleKey = 'marca' | 'modelo' | 'anio';
+
 export default function SettingsScreen() {
   const { phase, activate, deactivate, contacto, saveContacto } = useModoMotoContext();
   const [editandoContacto, setEditandoContacto] = useState(false);
   const [contactoTemp, setContactoTemp] = useState('');
-  const [editando, setEditando] = useState(false);
+  const [editingField, setEditingField] = useState<VehicleKey | null>(null);
   const [perfilTemp, setPerfilTemp] = useState<PerfilVehiculo | null>(null);
   const [aiModel, setAiModel] = useState('Ollama (cargando...)');
 
   const { perfil, updateProfile, loading } = useVehicleProfile();
+  const perfilRef = useRef<PerfilVehiculo | null>(null);
 
   useEffect(() => {
-    if (perfil) setPerfilTemp(perfil);
+    if (perfil) { setPerfilTemp(perfil); perfilRef.current = perfil; }
   }, [perfil]);
 
   useEffect(() => {
@@ -37,16 +40,33 @@ export default function SettingsScreen() {
       .catch(() => setAiModel('Ollama · local'));
   }, []);
 
-  const guardarCambios = async () => {
-    if (!perfilTemp) return;
-    await updateProfile(perfilTemp);
-    setEditando(false);
-    Alert.alert('Guardado', 'Perfil del vehículo actualizado.');
-  };
+  const setField = useCallback((key: VehicleKey, value: string) => {
+    setPerfilTemp((prev) => {
+      if (!prev) return prev;
+      const next = { ...prev, [key]: value };
+      perfilRef.current = next;
+      return next;
+    });
+  }, []);
 
-  const cancelarEdicion = () => {
-    if (perfil) setPerfilTemp(perfil);
-    setEditando(false);
+  const saveProfile = useCallback(async () => {
+    if (!perfilRef.current) return;
+    await updateProfile(perfilRef.current);
+  }, [updateProfile]);
+
+  const handleFieldBlur = useCallback(() => {
+    setEditingField(null);
+    saveProfile();
+  }, [saveProfile]);
+
+  const handleFuelChange = (fuel: string) => {
+    setPerfilTemp((prev) => {
+      if (!prev) return prev;
+      const next = { ...prev, combustible: fuel };
+      perfilRef.current = next;
+      return next;
+    });
+    setTimeout(() => saveProfile(), 0);
   };
 
   if (loading || !perfilTemp) {
@@ -59,6 +79,12 @@ export default function SettingsScreen() {
     );
   }
 
+  const fields: { label: string; key: VehicleKey; placeholder: string; keyboardType?: 'default' | 'numeric' }[] = [
+    { label: 'Marca', key: 'marca', placeholder: 'Ej: Honda' },
+    { label: 'Modelo', key: 'modelo', placeholder: 'Ej: CBR 300' },
+    { label: 'Año', key: 'anio', placeholder: 'Ej: 2022', keyboardType: 'numeric' },
+  ];
+
   return (
     <SafeAreaView style={s.screen} edges={['top']}>
       <View style={s.header}>
@@ -66,81 +92,81 @@ export default function SettingsScreen() {
         <Text style={s.headerSub}>Personaliza el diagnóstico</Text>
       </View>
       <KeyboardAvoidingView style={s.flex} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-      <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-
-        {/* Hero card vehículo — oscuro */}
-        <View style={s.vehicleHero}>
-          {/* Decoración */}
-          <View style={s.heroDecor} pointerEvents="none">
-            <Car color="rgba(255,255,255,0.06)" size={180} strokeWidth={1.4} />
-          </View>
-
-          <View style={s.heroTopRow}>
+        <ScrollView
+          style={s.scroll}
+          contentContainerStyle={s.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          {/* Hero card vehículo */}
+          <View style={s.vehicleHero}>
+            <View style={s.heroDecor} pointerEvents="none">
+              <Car color="rgba(255,255,255,0.06)" size={180} strokeWidth={1.4} />
+            </View>
             <Text style={s.heroBadge}>Vehículo activo</Text>
-            {!editando ? (
-              <TouchableOpacity onPress={() => setEditando(true)} activeOpacity={0.7}>
-                <Edit2 color="rgba(255,255,255,0.7)" size={16} strokeWidth={2} />
-              </TouchableOpacity>
-            ) : (
-              <View style={s.heroActions}>
-                <TouchableOpacity onPress={cancelarEdicion}>
-                  <Text style={s.heroCancelText}>Cancelar</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={s.heroSaveBtn} onPress={guardarCambios} activeOpacity={0.8}>
-                  <Text style={s.heroSaveText}>Guardar</Text>
-                </TouchableOpacity>
-              </View>
-            )}
+            <Text style={s.heroVehicleName}>
+              {(perfilTemp.marca || perfilTemp.modelo)
+                ? `${perfilTemp.marca || ''} ${perfilTemp.modelo || ''}`.trim()
+                : 'Sin configurar'}
+            </Text>
+            <Text style={s.heroVehicleSub}>
+              {perfilTemp.anio || '—'} · {perfilTemp.combustible}
+            </Text>
+            <Text style={s.heroHint}>Tocá cualquier campo para editar</Text>
           </View>
 
-          <Text style={s.heroVehicleName}>
-            {perfilTemp.marca || 'Sin marca'} {perfilTemp.modelo || ''}
-          </Text>
-          <Text style={s.heroVehicleSub}>
-            {perfilTemp.anio} · {perfilTemp.combustible}
-          </Text>
-        </View>
+          {/* Datos del vehículo */}
+          <View style={s.sectionLabel}>
+            <Text style={s.sectionLabelText}>DATOS DEL VEHÍCULO</Text>
+          </View>
+          <View style={s.card}>
+            {fields.map((item, i) => (
+              <TouchableOpacity
+                key={item.key}
+                style={[s.row, i < fields.length - 1 && s.rowBorder]}
+                onPress={() => setEditingField(item.key)}
+                activeOpacity={0.65}
+              >
+                <Text style={s.rowLabel}>{item.label}</Text>
+                {editingField === item.key ? (
+                  <TextInput
+                    style={s.rowInput}
+                    value={perfilTemp[item.key]}
+                    onChangeText={(v) => setField(item.key, v)}
+                    placeholder={item.placeholder}
+                    placeholderTextColor={colors.tertiaryText}
+                    selectionColor={colors.brand}
+                    keyboardType={item.keyboardType ?? 'default'}
+                    autoFocus
+                    returnKeyType="done"
+                    onBlur={handleFieldBlur}
+                    onSubmitEditing={handleFieldBlur}
+                  />
+                ) : (
+                  <View style={s.rowValueWrap}>
+                    <Text style={perfilTemp[item.key] ? s.rowValue : s.rowHint}>
+                      {perfilTemp[item.key] || item.placeholder}
+                    </Text>
+                    {!perfilTemp[item.key] && (
+                      <ChevronRight color={colors.tertiaryText} size={14} strokeWidth={2} />
+                    )}
+                  </View>
+                )}
+              </TouchableOpacity>
+            ))}
 
-        {/* Datos del vehículo */}
-        <View style={s.sectionLabel}>
-          <Text style={s.sectionLabelText}>DATOS DEL VEHÍCULO</Text>
-        </View>
-        <View style={s.card}>
-          {[
-            { label: 'Marca', key: 'marca' as const, placeholder: 'Ej: Toyota' },
-            { label: 'Modelo', key: 'modelo' as const, placeholder: 'Ej: Corolla' },
-            { label: 'Año', key: 'anio' as const, placeholder: 'Ej: 2019' },
-          ].map((item, i, arr) => (
-            <View key={i} style={[s.row, i < arr.length - 1 && s.rowBorder]}>
-              <Text style={s.rowLabel}>{item.label}</Text>
-              {editando ? (
-                <TextInput
-                  style={s.rowInput}
-                  value={perfilTemp[item.key]}
-                  onChangeText={(v) => setPerfilTemp({ ...perfilTemp, [item.key]: v })}
-                  placeholder={item.placeholder}
-                  placeholderTextColor={colors.tertiaryText}
-                  selectionColor={colors.brand}
-                />
-              ) : (
-                <Text style={s.rowValue}>{perfilTemp[item.key] || 'Sin definir'}</Text>
-              )}
-            </View>
-          ))}
-
-          {/* Combustible */}
-          <View style={s.fuelSection}>
-            <View style={s.fuelLabelRow}>
-              <Fuel color={colors.tertiaryText} size={14} />
-              <Text style={s.rowLabel}>Combustible</Text>
-            </View>
-            {editando ? (
+            {/* Combustible */}
+            <View style={s.fuelSection}>
+              <View style={s.fuelLabelRow}>
+                <Fuel color={colors.tertiaryText} size={14} />
+                <Text style={s.rowLabel}>Combustible</Text>
+              </View>
               <View style={s.fuelOptions}>
                 {FUEL_OPTIONS.map((fuel) => (
                   <TouchableOpacity
                     key={fuel}
                     style={[s.fuelOption, perfilTemp.combustible === fuel && s.fuelOptionActive]}
-                    onPress={() => setPerfilTemp({ ...perfilTemp, combustible: fuel })}
+                    onPress={() => handleFuelChange(fuel)}
                     activeOpacity={0.8}
                   >
                     <Text style={[s.fuelOptionText, perfilTemp.combustible === fuel && s.fuelOptionTextActive]}>
@@ -149,116 +175,120 @@ export default function SettingsScreen() {
                   </TouchableOpacity>
                 ))}
               </View>
-            ) : (
-              <View style={s.fuelPill}>
-                <Fuel color={colors.brandDeep} size={12} strokeWidth={2.2} />
-                <Text style={s.fuelText}>{perfilTemp.combustible}</Text>
-              </View>
-            )}
+            </View>
           </View>
-        </View>
 
-        {/* Aplicación */}
-        <View style={s.sectionLabel}>
-          <Text style={s.sectionLabelText}>APLICACIÓN</Text>
-        </View>
-        <View style={s.card}>
-          {[
-            { label: 'Motor de IA', value: aiModel, Icon: Cpu },
-            { label: 'Almacenamiento', value: 'Solo en tu dispositivo', Icon: ShieldCheck },
-          ].map((item, i, arr) => {
-            const Icon = item.Icon;
-            return (
-              <View key={i} style={[s.aboutRow, i < arr.length - 1 && s.rowBorder]}>
-                <View style={s.aboutLabelRow}>
-                  <View style={s.aboutIconWrap}>
-                    <Icon color={colors.brand} size={14} strokeWidth={2} />
+          {/* Aplicación */}
+          <View style={s.sectionLabel}>
+            <Text style={s.sectionLabelText}>APLICACIÓN</Text>
+          </View>
+          <View style={s.card}>
+            {[
+              { label: 'Motor de IA', value: aiModel, Icon: Cpu },
+              { label: 'Almacenamiento', value: 'Solo en tu dispositivo', Icon: ShieldCheck },
+            ].map((item, i, arr) => {
+              const Icon = item.Icon;
+              return (
+                <View key={i} style={[s.aboutRow, i < arr.length - 1 && s.rowBorder]}>
+                  <View style={s.aboutLabelRow}>
+                    <View style={s.aboutIconWrap}>
+                      <Icon color={colors.brand} size={14} strokeWidth={2} />
+                    </View>
+                    <Text style={s.rowLabel}>{item.label}</Text>
                   </View>
-                  <Text style={s.rowLabel}>{item.label}</Text>
+                  <Text style={s.aboutValue}>{item.value}</Text>
                 </View>
-                <Text style={s.aboutValue}>{item.value}</Text>
+              );
+            })}
+          </View>
+
+          {/* Modo Moto */}
+          <View style={s.sectionLabel}>
+            <Text style={s.sectionLabelText}>MODO MOTO</Text>
+          </View>
+
+          <TouchableOpacity
+            style={[s.motoCard, phase === 'monitoring' && s.motoCardActive]}
+            activeOpacity={0.88}
+            onPress={phase === 'idle' ? activate : deactivate}
+          >
+            <View style={s.motoCardLeft}>
+              <View style={[s.motoIconWrap, phase === 'monitoring' && s.motoIconWrapActive]}>
+                <Shield color={phase === 'monitoring' ? '#fff' : colors.motoPurple} size={22} strokeWidth={2} />
               </View>
-            );
-          })}
-        </View>
-
-        {/* Modo Moto */}
-        <View style={s.sectionLabel}>
-          <Text style={s.sectionLabelText}>MODO MOTO</Text>
-        </View>
-
-        {/* Tarjeta de activación */}
-        <TouchableOpacity
-          style={[s.motoCard, phase === 'monitoring' && s.motoCardActive]}
-          activeOpacity={0.88}
-          onPress={phase === 'idle' ? activate : deactivate}
-        >
-          <View style={s.motoCardLeft}>
-            <View style={[s.motoIconWrap, phase === 'monitoring' && s.motoIconWrapActive]}>
-              <Shield color={phase === 'monitoring' ? '#fff' : colors.motoPurple} size={22} strokeWidth={2} />
-            </View>
-            <View style={s.motoTextWrap}>
-              <Text style={[s.motoTitle, phase === 'monitoring' && s.motoTitleActive]}>
-                {phase === 'monitoring' ? 'Monitoreando...' : 'Activar Modo Moto'}
-              </Text>
-              <Text style={[s.motoSub, phase === 'monitoring' && s.motoSubActive]}>
-                {phase === 'monitoring'
-                  ? 'Detectando impactos y caídas'
-                  : 'Detección automática de accidentes'}
-              </Text>
-            </View>
-          </View>
-          <View style={[s.motoToggle, phase === 'monitoring' && s.motoToggleActive]}>
-            <View style={[s.motoToggleDot, phase === 'monitoring' && s.motoToggleDotActive]} />
-          </View>
-        </TouchableOpacity>
-
-        {/* Contacto de emergencia */}
-        <View style={s.card}>
-          <View style={[s.row, s.rowBorder]}>
-            <View style={s.aboutLabelRow}>
-              <View style={s.aboutIconWrap}>
-                <Phone color={colors.motoPurple} size={14} strokeWidth={2} />
+              <View style={s.motoTextWrap}>
+                <Text style={[s.motoTitle, phase === 'monitoring' && s.motoTitleActive]}>
+                  {phase === 'monitoring' ? 'Monitoreando...' : 'Activar Modo Moto'}
+                </Text>
+                <Text style={[s.motoSub, phase === 'monitoring' && s.motoSubActive]}>
+                  {phase === 'monitoring'
+                    ? 'Detectando impactos y caídas'
+                    : 'Detección automática de accidentes'}
+                </Text>
               </View>
-              <Text style={s.rowLabel}>Contacto de emergencia</Text>
             </View>
-            {!editandoContacto ? (
-              <TouchableOpacity onPress={() => { setContactoTemp(contacto); setEditandoContacto(true); }}>
-                <Text style={s.contactoValue}>{contacto || 'Sin definir'}</Text>
-              </TouchableOpacity>
-            ) : (
-              <TextInput
-                style={s.contactoInput}
-                value={contactoTemp}
-                onChangeText={setContactoTemp}
-                placeholder="+5491112345678"
-                placeholderTextColor={colors.tertiaryText}
-                keyboardType="phone-pad"
-                selectionColor={colors.motoPurple}
-                onBlur={() => { saveContacto(contactoTemp); setEditandoContacto(false); }}
-                autoFocus
-              />
-            )}
-          </View>
-          <View style={s.motoHintRow}>
-            <Text style={s.motoHint}>
-              Número de WhatsApp al que se enviará la alerta. Incluir código de país.
-            </Text>
-          </View>
-        </View>
+            <View style={[s.motoToggle, phase === 'monitoring' && s.motoToggleActive]}>
+              <View style={[s.motoToggleDot, phase === 'monitoring' && s.motoToggleDotActive]} />
+            </View>
+          </TouchableOpacity>
 
-        {/* Aviso */}
-        <View style={s.disclaimer}>
-          <AlertTriangle color={colors.warnOrange} size={18} strokeWidth={2.2} />
-          <View style={s.disclaimerContent}>
-            <Text style={s.disclaimerTitle}>Aviso importante</Text>
-            <Text style={s.disclaimerText}>
-              MecánicaYA es una herramienta orientativa. No reemplaza la revisión de un mecánico certificado.
-            </Text>
+          {/* Contacto de emergencia */}
+          <View style={s.card}>
+            <TouchableOpacity
+              style={[s.contactRow, s.rowBorder]}
+              onPress={() => {
+                setContactoTemp(contacto);
+                setEditandoContacto(true);
+              }}
+              activeOpacity={0.7}
+            >
+              <View style={s.aboutLabelRow}>
+                <View style={[s.aboutIconWrap, { backgroundColor: colors.purpleSurface }]}>
+                  <Phone color={colors.motoPurple} size={14} strokeWidth={2} />
+                </View>
+                <Text style={s.rowLabel}>Contacto de emergencia</Text>
+              </View>
+              {editandoContacto ? (
+                <TextInput
+                  style={s.contactoInput}
+                  value={contactoTemp}
+                  onChangeText={setContactoTemp}
+                  placeholder="+591 70000000"
+                  placeholderTextColor={colors.tertiaryText}
+                  keyboardType="phone-pad"
+                  selectionColor={colors.motoPurple}
+                  autoFocus
+                  returnKeyType="done"
+                  onBlur={() => { saveContacto(contactoTemp); setEditandoContacto(false); }}
+                  onSubmitEditing={() => { saveContacto(contactoTemp); setEditandoContacto(false); }}
+                />
+              ) : (
+                <View style={s.rowValueWrap}>
+                  <Text style={contacto ? s.contactoValue : s.contactoEmpty}>
+                    {contacto || 'Agregar número'}
+                  </Text>
+                  {!contacto && <ChevronRight color={colors.motoPurple} size={14} strokeWidth={2} />}
+                </View>
+              )}
+            </TouchableOpacity>
+            <View style={s.motoHintRow}>
+              <Text style={s.motoHint}>
+                Número de WhatsApp al que se enviará la alerta. Incluir código de país.
+              </Text>
+            </View>
           </View>
-        </View>
 
-      </ScrollView>
+          {/* Aviso */}
+          <View style={s.disclaimer}>
+            <AlertTriangle color={colors.warnOrange} size={18} strokeWidth={2.2} />
+            <View style={s.disclaimerContent}>
+              <Text style={s.disclaimerTitle}>Aviso importante</Text>
+              <Text style={s.disclaimerText}>
+                MecánicaYA es una herramienta orientativa. No reemplaza la revisión de un mecánico certificado.
+              </Text>
+            </View>
+          </View>
+        </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -281,36 +311,25 @@ const s = StyleSheet.create({
     position: 'relative',
     overflow: 'hidden',
     marginBottom: 4,
+    gap: 2,
   },
-  heroDecor: {
-    position: 'absolute',
-    right: -20,
-    top: -30,
-  },
-  heroTopRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
+  heroDecor: { position: 'absolute', right: -20, top: -30 },
   heroBadge: {
     fontSize: 10.5,
     fontWeight: '700',
-    color: 'rgba(255,255,255,0.65)',
+    color: 'rgba(255,255,255,0.5)',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+    marginBottom: 6,
   },
-  heroActions: { flexDirection: 'row', gap: 12, alignItems: 'center' },
-  heroCancelText: { fontSize: 13, color: 'rgba(255,255,255,0.6)', fontWeight: '500' },
-  heroSaveBtn: {
-    backgroundColor: colors.brand,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-  },
-  heroSaveText: { fontSize: 13, fontWeight: '700', color: '#fff' },
   heroVehicleName: { fontSize: 22, fontWeight: '800', color: '#fff', letterSpacing: -0.3 },
-  heroVehicleSub: { fontSize: 13, color: 'rgba(255,255,255,0.7)', marginTop: 4 },
+  heroVehicleSub: { fontSize: 13, color: 'rgba(255,255,255,0.7)', marginTop: 2 },
+  heroHint: {
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.35)',
+    marginTop: 10,
+    fontStyle: 'italic',
+  },
 
   sectionLabel: { paddingHorizontal: 4, marginTop: 6 },
   sectionLabelText: {
@@ -337,11 +356,14 @@ const s = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
-    height: 52,
+    minHeight: 52,
+    paddingVertical: 4,
   },
   rowBorder: { borderBottomWidth: 1, borderBottomColor: colors.surface2 },
   rowLabel: { fontSize: 13.5, color: colors.secondaryText, fontWeight: '600' },
+  rowValueWrap: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   rowValue: { fontSize: 14, color: colors.primaryText, fontWeight: '700' },
+  rowHint: { fontSize: 13.5, color: colors.tertiaryText, fontStyle: 'italic' },
   rowInput: {
     fontSize: 14,
     color: colors.primaryText,
@@ -350,15 +372,11 @@ const s = StyleSheet.create({
     marginLeft: 16,
     borderBottomWidth: 1.5,
     borderBottomColor: colors.brand,
-    paddingVertical: 4,
+    paddingVertical: 6,
     fontWeight: '600',
   },
 
-  fuelSection: {
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    gap: 10,
-  },
+  fuelSection: { paddingHorizontal: 16, paddingVertical: 14, gap: 10 },
   fuelLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   fuelOptions: { flexDirection: 'row', gap: 8 },
   fuelOption: {
@@ -369,23 +387,9 @@ const s = StyleSheet.create({
     borderColor: colors.borderColor,
     alignItems: 'center',
   },
-  fuelOptionActive: {
-    borderColor: colors.brand,
-    backgroundColor: colors.brandSoft,
-  },
+  fuelOptionActive: { borderColor: colors.brand, backgroundColor: colors.brandSoft },
   fuelOptionText: { fontSize: 13, fontWeight: '500', color: colors.secondaryText },
   fuelOptionTextActive: { color: colors.brand, fontWeight: '700' },
-  fuelPill: {
-    alignSelf: 'flex-start',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: colors.brandSoft,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 100,
-  },
-  fuelText: { fontSize: 13, color: colors.brandDeep, fontWeight: '700' },
 
   aboutRow: {
     flexDirection: 'row',
@@ -439,10 +443,7 @@ const s = StyleSheet.create({
     elevation: 2,
     shadowOffset: { width: 0, height: 2 },
   },
-  motoCardActive: {
-    backgroundColor: colors.motoPurple,
-    borderColor: colors.motoPurple,
-  },
+  motoCardActive: { backgroundColor: colors.motoPurple, borderColor: colors.motoPurple },
   motoCardLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
   motoIconWrap: {
     width: 44,
@@ -473,11 +474,19 @@ const s = StyleSheet.create({
     borderRadius: 11,
     backgroundColor: colors.tertiaryText,
   },
-  motoToggleDotActive: {
-    backgroundColor: '#fff',
-    alignSelf: 'flex-end',
+  motoToggleDotActive: { backgroundColor: '#fff', alignSelf: 'flex-end' },
+
+  // Contacto
+  contactRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    minHeight: 56,
+    paddingVertical: 4,
   },
-  contactoValue: { fontSize: 13, fontWeight: '600', color: colors.motoPurple },
+  contactoValue: { fontSize: 13, fontWeight: '700', color: colors.motoPurple },
+  contactoEmpty: { fontSize: 13, fontWeight: '600', color: colors.motoPurple, fontStyle: 'italic' },
   contactoInput: {
     fontSize: 13,
     color: colors.primaryText,
@@ -486,10 +495,9 @@ const s = StyleSheet.create({
     marginLeft: 16,
     borderBottomWidth: 1.5,
     borderBottomColor: colors.motoPurple,
-    paddingVertical: 4,
+    paddingVertical: 6,
     fontWeight: '600',
   },
   motoHintRow: { paddingHorizontal: 16, paddingBottom: 14 },
   motoHint: { fontSize: 11.5, color: colors.tertiaryText, lineHeight: 17 },
-
 });

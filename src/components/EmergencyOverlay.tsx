@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { Animated, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { AlertTriangle } from 'lucide-react-native';
 import { colors } from '../theme/colors';
 
 interface Props {
@@ -29,7 +30,7 @@ export function EmergencyOverlay({ visible, countdown, onCancel }: Props) {
                 <View style={s.topSection}>
                     <Animated.View style={[s.pulseRing, { transform: [{ scale: pulse }] }]}>
                         <View style={s.iconCircle}>
-                            <Text style={s.iconEmoji}>🏍️</Text>
+                            <AlertTriangle color="#fff" size={44} strokeWidth={2} />
                         </View>
                     </Animated.View>
 
@@ -77,7 +78,6 @@ const s = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
     },
-    iconEmoji: { fontSize: 44 },
     title: {
         fontSize: 28,
         fontWeight: '900',

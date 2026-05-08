@@ -40,7 +40,7 @@ export default function LoadingScreen() {
         setStep(3);
         setProgress(100);
         setTimeout(
-          () => navigation.replace('Resultado', { diagnostico: data }),
+          () => navigation.replace('Resultado', { diagnostico: data, sintomas, perfilVehiculo }),
           600
         );
       }
