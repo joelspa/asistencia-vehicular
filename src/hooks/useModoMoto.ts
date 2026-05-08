@@ -1,11 +1,18 @@
 import { useEffect, useRef, useState } from 'react';
 import { Linking, Platform, Vibration } from 'react-native';
+// import { Accelerometer, Gyroscope } from 'expo-sensors'; // [GYRO] descomentar al habilitar giroscopio
 import { Accelerometer } from 'expo-sensors';
 import * as Location from 'expo-location';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// Umbral bajo para modo demo/simulación. En producción usar ~2.5G con giroscopio.
+// Umbral solo acelerómetro — modo simulación/demo
 const IMPACT_THRESHOLD_G = 0.5;
+
+// [GYRO] Umbrales para producción con doble condición (impacto + caída)
+// const IMPACT_THRESHOLD_G = 2.5;          // G — sacudida fuerte
+// const ROTATION_THRESHOLD_RAD = (45 * Math.PI) / 180; // 45° de rotación post-impacto
+// const TRIGGER_WINDOW_MS = 3500;          // ventana máxima entre impacto y caída
+
 const COUNTDOWN_SECONDS = 10;
 const KEY_CONTACTO = 'moto:contacto';
 const KEY_EVENTOS = 'moto:eventos';
@@ -19,6 +26,10 @@ export function useModoMoto() {
 
     const r = useRef({
         accelSub: null as ReturnType<typeof Accelerometer.addListener> | null,
+        // [GYRO] gyroSub: null as ReturnType<typeof Gyroscope.addListener> | null,
+        // [GYRO] impactTime: null as number | null,
+        // [GYRO] cumRotation: 0,
+        // [GYRO] lastGyroTime: null as number | null,
         locationSub: null as Location.LocationSubscription | null,
         lastLocation: null as Location.LocationObject | null,
         countdownTimer: null as ReturnType<typeof setInterval> | null,
@@ -39,6 +50,8 @@ export function useModoMoto() {
     const stopSensors = () => {
         r.current.accelSub?.remove();
         r.current.accelSub = null;
+        // [GYRO] r.current.gyroSub?.remove();
+        // [GYRO] r.current.gyroSub = null;
     };
 
     const stopLocationTracking = () => {
@@ -122,14 +135,53 @@ export function useModoMoto() {
 
     const startSensors = () => {
         r.current.alerting = false;
+        // [GYRO] r.current.impactTime = null;
+        // [GYRO] r.current.cumRotation = 0;
+        // [GYRO] r.current.lastGyroTime = null;
 
+        // Modo simulación: dispara con solo acelerómetro > umbral
         Accelerometer.setUpdateInterval(50);
         r.current.accelSub = Accelerometer.addListener(({ x, y, z }) => {
             if (r.current.alerting) return;
             const mag = Math.sqrt(x * x + y * y + z * z);
             const magG = Platform.OS === 'android' ? mag / 9.81 : mag;
-            if (magG > IMPACT_THRESHOLD_G) triggerAlert();
+
+            if (magG > IMPACT_THRESHOLD_G) {
+                triggerAlert();
+            }
         });
+
+        // [GYRO] Modo producción: requiere impacto + rotación dentro de TRIGGER_WINDOW_MS
+        // Accelerometer.setUpdateInterval(80);
+        // r.current.accelSub = Accelerometer.addListener(({ x, y, z }) => {
+        //     if (r.current.alerting) return;
+        //     const mag = Math.sqrt(x * x + y * y + z * z);
+        //     const magG = Platform.OS === 'android' ? mag / 9.81 : mag;
+        //     if (magG > IMPACT_THRESHOLD_G && r.current.impactTime === null) {
+        //         r.current.impactTime = Date.now();
+        //         r.current.cumRotation = 0;
+        //         r.current.lastGyroTime = null;
+        //     }
+        // });
+        //
+        // Gyroscope.setUpdateInterval(80);
+        // r.current.gyroSub = Gyroscope.addListener(({ y, z }) => {
+        //     if (r.current.alerting || r.current.impactTime === null) return;
+        //     const now = Date.now();
+        //     const elapsed = now - r.current.impactTime;
+        //     if (elapsed > TRIGGER_WINDOW_MS) {
+        //         r.current.impactTime = null;
+        //         r.current.cumRotation = 0;
+        //         r.current.lastGyroTime = null;
+        //         return;
+        //     }
+        //     const dt = r.current.lastGyroTime ? (now - r.current.lastGyroTime) / 1000 : 0.08;
+        //     r.current.lastGyroTime = now;
+        //     r.current.cumRotation += (Math.abs(y) + Math.abs(z)) * dt;
+        //     if (r.current.cumRotation >= ROTATION_THRESHOLD_RAD) {
+        //         triggerAlert();
+        //     }
+        // });
     };
 
     const activate = () => {
