@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Linking, Platform } from 'react-native';
+import { Linking, Platform, Vibration } from 'react-native';
 // import { Accelerometer, Gyroscope } from 'expo-sensors'; // [GYRO] descomentar al habilitar giroscopio
 import { Accelerometer } from 'expo-sensors';
 import * as Location from 'expo-location';
@@ -91,7 +91,7 @@ export function useModoMoto() {
 
             const timestamp = new Date().toLocaleString('es-AR');
             const mapUrl = `https://maps.google.com/?q=${lat},${lng}`;
-            const texto = `🆘 ACCIDENTE DE MOTO DETECTADO\nNecesito ayuda urgente.\n📍 ${mapUrl}\nHora: ${timestamp}`;
+            const texto = `[EMERGENCIA] ACCIDENTE DE MOTO DETECTADO\nNecesito ayuda urgente.\nUbicacion: ${mapUrl}\nHora: ${timestamp}`;
 
             const stored = await AsyncStorage.getItem(KEY_EVENTOS);
             const eventos = stored ? JSON.parse(stored) : [];
@@ -103,6 +103,7 @@ export function useModoMoto() {
                 await Linking.openURL(`https://wa.me/${numero}?text=${encodeURIComponent(texto)}`);
             }
         } finally {
+            Vibration.cancel();
             stopLocationTracking();
             r.current.alerting = false;
             setPhase('idle');
@@ -114,6 +115,7 @@ export function useModoMoto() {
         if (r.current.alerting) return;
         r.current.alerting = true;
 
+        Vibration.vibrate([0, 800, 300, 800, 300, 800], true);
         stopSensors();
         setPhase('alert');
 
@@ -199,6 +201,7 @@ export function useModoMoto() {
 
     const cancelAlert = () => {
         if (r.current.countdownTimer) { clearInterval(r.current.countdownTimer); r.current.countdownTimer = null; }
+        Vibration.cancel();
         r.current.alerting = false;
         setPhase('monitoring');
         setCountdown(COUNTDOWN_SECONDS);

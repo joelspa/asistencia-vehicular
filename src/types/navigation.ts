@@ -14,7 +14,7 @@ import { DiagnosticoResponse } from './apiTypes';
 export type RootStackParamList = {
   MainTabs: NavigatorScreenParams<TabParamList> | undefined;
   Carga: { sintomas: string; perfilVehiculo: string };
-  Resultado: { diagnostico: DiagnosticoResponse };
+  Resultado: { diagnostico: DiagnosticoResponse; sintomas?: string; perfilVehiculo?: string };
 };
 
 /**

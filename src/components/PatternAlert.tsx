@@ -1,20 +1,12 @@
-/**
- * PatternAlert.tsx - Alerta visual de falla recurrente.
- * Se muestra en el resultado de diagnostico cuando se detecta
- * que el usuario ha consultado por el mismo problema multiples veces.
- */
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { AlertTriangle } from 'lucide-react-native';
 import { colors } from '../theme/colors';
 
-/**
- * Renderiza una alerta de patron recurrente con borde lateral naranja.
- * Indica al usuario que debe atender el problema con mayor urgencia.
- */
 export default function PatternAlert() {
   return (
     <View style={styles.container}>
-      <Text style={styles.icon}>{'\u26A0'}</Text>
+      <AlertTriangle color={colors.primaryOrange} size={18} style={{ marginTop: 2 }} />
       <View style={styles.content}>
         <Text style={styles.title}>Falla recurrente detectada</Text>
         <Text style={styles.description}>
@@ -37,7 +29,6 @@ const styles = StyleSheet.create({
     gap: 12,
     alignItems: 'flex-start',
   },
-  icon: { fontSize: 18, marginTop: 2, color: colors.primaryOrange },
   content: { flex: 1 },
   title: { fontSize: 13, fontWeight: '700', color: colors.primaryOrange, marginBottom: 3 },
   description: { fontSize: 13, color: colors.secondaryText, lineHeight: 20 },

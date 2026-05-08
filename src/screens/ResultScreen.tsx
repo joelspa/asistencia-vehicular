@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
-  ArrowLeft, Info, ChevronDown, ChevronUp, RefreshCcw, MapPin, AlertTriangle, Check,
+  ArrowLeft, Info, ChevronDown, ChevronUp, RefreshCcw, MapPin, AlertTriangle, Check, MessageSquare,
 } from 'lucide-react-native';
 import { RootStackParamList } from '../types/navigation';
 import { colors } from '../theme/colors';
@@ -21,11 +21,12 @@ export default function ResultScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute<ResultRoute>();
-  const { diagnostico } = route.params;
+  const { diagnostico, sintomas, perfilVehiculo } = route.params;
 
   const level = getUrgencyLevel(diagnostico.urgency_level);
   const config = getUrgencyConfig(diagnostico.urgency_level);
   const [expandedReasoning, setExpandedReasoning] = useState(false);
+  const [reasoningOverflows, setReasoningOverflows] = useState(false);
 
   const heroBg = config.backgroundColor;
 
@@ -87,6 +88,20 @@ export default function ResultScreen() {
         contentContainerStyle={[s.scrollPad, { paddingBottom: insets.bottom + 80 }]}
         showsVerticalScrollIndicator={false}
       >
+        {/* Consulta realizada */}
+        {(sintomas || perfilVehiculo) && (
+          <View style={s.queryCard}>
+            <View style={s.queryIconWrap}>
+              <MessageSquare color={colors.brand} size={14} strokeWidth={2.2} />
+            </View>
+            <View style={s.queryContent}>
+              <Text style={s.queryLabel}>LO QUE CONSULTASTE</Text>
+              {perfilVehiculo ? <Text style={s.queryVehicle}>{perfilVehiculo}</Text> : null}
+              {sintomas ? <Text style={s.queryText}>{sintomas}</Text> : null}
+            </View>
+          </View>
+        )}
+
         {/* Causas */}
         <View style={s.card}>
           <View style={s.cardTitleRow}>
@@ -110,10 +125,18 @@ export default function ResultScreen() {
             </View>
             <Text style={s.reasonTitle}>Por qué este resultado</Text>
           </View>
-          <Text style={s.reasonText} numberOfLines={expandedReasoning ? undefined : 4}>
+          <Text
+            style={s.reasonText}
+            numberOfLines={expandedReasoning ? undefined : 4}
+            onTextLayout={(e) => {
+              if (!reasoningOverflows && e.nativeEvent.lines.length > 4) {
+                setReasoningOverflows(true);
+              }
+            }}
+          >
             {diagnostico.razonamiento}
           </Text>
-          {diagnostico.razonamiento.length > 150 && (
+          {reasoningOverflows && (
             <TouchableOpacity
               onPress={() => setExpandedReasoning(!expandedReasoning)}
               style={s.expandBtn}
@@ -376,4 +399,50 @@ const s = StyleSheet.create({
     gap: 6,
   },
   ctaSecondaryText: { fontSize: 13, fontWeight: '700', color: colors.primaryText },
+
+  // Card de consulta
+  queryCard: {
+    backgroundColor: colors.cardBackground,
+    borderRadius: 18,
+    padding: 14,
+    flexDirection: 'row',
+    gap: 10,
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
+    shadowOffset: { width: 0, height: 2 },
+    borderLeftWidth: 3,
+    borderLeftColor: colors.brand,
+  },
+  queryIconWrap: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    backgroundColor: colors.brandSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+    marginTop: 1,
+  },
+  queryContent: { flex: 1 },
+  queryLabel: {
+    fontSize: 9.5,
+    fontWeight: '700',
+    color: colors.tertiaryText,
+    letterSpacing: 0.5,
+    marginBottom: 5,
+  },
+  queryVehicle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.secondaryText,
+    marginBottom: 4,
+  },
+  queryText: {
+    fontSize: 13,
+    color: colors.primaryText,
+    lineHeight: 20,
+    fontStyle: 'italic',
+  },
 });
