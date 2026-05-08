@@ -23,7 +23,7 @@ export type RootStackParamList = {
  */
 export type TabParamList = {
   Inicio: undefined;
-  Mapa: { lat?: number; lng?: number } | undefined;
+  Mapa: { lat?: number; lng?: number; especialidades?: string[] } | undefined;
   Historial: undefined;
   Configuracion: undefined;
 };
