@@ -169,7 +169,7 @@ function EmptyState({ activeFilter, onNavigateToDiagnosis }: EmptyStateProps) {
       <Text style={s.emptyText}>
         {isFiltered
           ? 'No hay resultados para este filtro.'
-          : 'Hacé tu primer diagnóstico y aparecerá aquí.'}
+          : 'Haz tu primer diagnóstico y aparecerá aquí.'}
       </Text>
       {!isFiltered && (
         <TouchableOpacity style={s.emptyBtn} onPress={onNavigateToDiagnosis} activeOpacity={0.85}>
