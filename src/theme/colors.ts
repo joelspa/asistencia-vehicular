@@ -31,25 +31,6 @@ export const lightColors = {
   warnSoft: '#FEF3C7',
   critSoft: '#FEE2E2',
   purpleSurface: '#F3F0FF',
-
-  // Aliases compatibilidad
-  primaryOrange: '#2563EB',
-  orangeDark: '#1D4ED8',
-  lightSurface: '#E5EDF7',
-  greenSurface: '#DCFCE7',
-  moderateOrange: '#D97706',
-  moderateSurface: '#FEF3C7',
-  criticalRed: '#DC2626',
-  redSurface: '#FEE2E2',
-
-  // Legacy HomeStyles
-  background: '#F0F5FB',
-  surface: '#E5EDF7',
-  textPrimary: '#0C1525',
-  textSecondary: '#3A4E65',
-  motoActive: '#6D28D9',
-  moderate: '#D97706',
-  border: '#D0D9E6',
 };
 
 export const darkColors: typeof lightColors = {
@@ -65,7 +46,7 @@ export const darkColors: typeof lightColors = {
 
   primaryText: '#E8EDF6',    // ~14:1 sobre card ✓✓
   secondaryText: '#98A6BE',  // ~6.5:1 ✓✓
-  tertiaryText: '#7A8BA3',   // ~4.2:1 ✓ (era 2.5:1)
+  tertiaryText: '#7A8BA3',   // ~4.2:1 ✓
 
   borderColor: '#28324E',
   navy: '#1D2136',
@@ -80,23 +61,6 @@ export const darkColors: typeof lightColors = {
   warnSoft: '#2A1808',
   critSoft: '#280E0E',
   purpleSurface: '#1C1440',
-
-  primaryOrange: '#5C96F7',
-  orangeDark: '#3D80F0',
-  lightSurface: '#262D42',
-  greenSurface: '#0E2418',
-  moderateOrange: '#FBB040',
-  moderateSurface: '#2A1808',
-  criticalRed: '#FC8181',
-  redSurface: '#280E0E',
-
-  background: '#131720',
-  surface: '#262D42',
-  textPrimary: '#E8EDF6',
-  textSecondary: '#98A6BE',
-  motoActive: '#A78BFA',
-  moderate: '#FBB040',
-  border: '#28324E',
 };
 
 export type AppColors = typeof lightColors;
