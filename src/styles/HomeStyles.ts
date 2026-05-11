@@ -4,6 +4,7 @@ import { colors, spacing, borderRadius } from '../theme/colors';
 export const styles = StyleSheet.create({
   container: {
     flex: 1,
+    bottom: -20,
     backgroundColor: colors.background,
   },
   scrollContent: {
@@ -208,18 +209,19 @@ export const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
   },
-  tabBar: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 70,
-    backgroundColor: colors.surface,
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    paddingBottom: spacing.sm,
-  },
+  // tabBar: {
+  //   // position: 'absolute',
+  //   bottom: 0,
+  //   left: 0,
+  //   right: 0,
+  //   height: 60,
+  //   width: '100%',
+  //   backgroundColor: colors.background,
+  //   flexDirection: 'row',
+  //   justifyContent: 'space-around',
+  //   alignItems: 'center',
+  //   borderTopWidth: 1,
+  //   borderTopColor: colors.border,
+  //   paddingBottom: spacing.sm,
+  // },
 });

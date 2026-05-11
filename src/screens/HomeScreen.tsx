@@ -1,29 +1,28 @@
-// Pantalla Principal - HomeScreen.tsx
-import React, { useState } from 'react';// React y hooks
+import React, { useState } from 'react';
 import {
   View,
   Text,
   TextInput,
   TouchableOpacity,
   ScrollView,
-  SafeAreaView,
-} from 'react-native';  // Componentes de React Native
+} from 'react-native';
 import { 
   LucideWrench, 
-  LucideMap, 
-  LucideHistory, 
-  LucideSettings 
-} from 'lucide-react-native';// Iconos de Lucide
+  LucideHistory 
+} from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
 
-import { colors, spacing } from '../theme/colors';// Colores y espaciados del tema
-import { styles } from '../styles/HomeStyles';// Estilos específicos de HomeScreen
+// --- TUS IMPORTS DE TEMA Y ESTILOS ---
+import { colors, spacing } from '../theme/colors';
+import { styles } from '../styles/HomeStyles';
 
-// Componentes modulares
+// --- TUS COMPONENTES MODULARES ---
 import { MotoModeToggle } from '../components/MotoModeToggle';
 import { VoiceCard } from '../components/VoiceCard';
 import { SymptomsChips } from '../components/SymptomsChips';
+import { BottomTabs } from '../components/BottomTabs';
 
-// Datos de síntomas frecuentes para los chips
 const SYMPTOMS_DATA = [
   'Ruido al frenar',
   'Motor recalentado',
@@ -32,15 +31,27 @@ const SYMPTOMS_DATA = [
   'Humo del escape',
 ];
 
-// Componente Principal de la Pantalla de Inicio
 export default function HomeScreen() {
+  const insets = useSafeAreaInsets();
   const [symptoms, setSymptoms] = useState('');
   const [isMotoMode, setIsMotoMode] = useState(false);
+  const navigation = useNavigation<any>();
 
-  // Renderizado de la pantalla principal con header, inputs de voz y texto, chips de síntomas frecuentes, y un botón de diagnóstico.
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+    /* Contenedor principal: 
+       - Usamos insets.top para que el Header no choque con el reloj/notch.
+       - No usamos insets.bottom aquí porque el BottomTabs ya lo maneja internamente.
+    */
+    <View style={{ 
+      flex: 1, 
+      backgroundColor: colors.background || '#FFFFFF', 
+      paddingTop: insets.top 
+    }}>
+      
+      <ScrollView 
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: 20 }]} 
+        showsVerticalScrollIndicator={false}
+      >
         
         {/* Header */}
         <View style={styles.header}>
@@ -52,11 +63,13 @@ export default function HomeScreen() {
             <LucideHistory color={colors.textPrimary} size={20} />
           </TouchableOpacity>
         </View>
+
         {/* Toggle de Modo Moto */}
         <MotoModeToggle 
           isActive={isMotoMode} 
           onToggle={() => setIsMotoMode(!isMotoMode)} 
         />
+
         {/* Instrucciones Principales */}
         <View style={styles.instructionContainer}>
           <Text style={styles.mainInstruction}>¿Qué falla tiene tu vehículo?</Text>
@@ -90,21 +103,20 @@ export default function HomeScreen() {
           currentValue={symptoms} 
           onSelect={setSymptoms} 
         />
+
         {/* Botón Principal de Diagnóstico */}
         <TouchableOpacity style={styles.mainButton}>
-          <LucideWrench color={colors.surface} size={20} style={{ marginRight: spacing.sm }} />
+          <LucideWrench color="#FFF" size={20} style={{ marginRight: spacing.sm }} />
           <Text style={styles.mainButtonText}>Diagnosticar vehiculo</Text>
         </TouchableOpacity>
 
       </ScrollView>
 
-      {/* Tab Bar */}
-      <View style={styles.tabBar}>
-        <LucideWrench color={colors.textPrimary} size={24} />
-        <LucideMap color={colors.textSecondary} size={24} />
-        <LucideHistory color={colors.textSecondary} size={24} />
-        <LucideSettings color={colors.textSecondary} size={24} />
-      </View>
-    </SafeAreaView>
+      {/* Barra de navegación inferior:
+          Al estar fuera del ScrollView, se queda fija abajo.
+      */}
+      <BottomTabs />
+      
+    </View>
   );
 }
