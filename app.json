@@ -1,26 +1,33 @@
 {
   "expo": {
-    "name": "asistencia-vehicular",
+    "name": "MecanicaYA",
     "slug": "asistencia-vehicular",
     "sdkVersion": "55.0.0",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
+    "plugins": [],
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.mecanicaya.app",
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "MecanicaYA usa el micrófono para grabar tu voz y describir síntomas del vehículo."
+      }
     },
     "android": {
+      "package": "com.mecanicaya.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": ["android.permission.RECORD_AUDIO"]
     },
     "web": {
       "favicon": "./assets/favicon.png"

@@ -1,24 +1,12 @@
-export type NivelUrgencia = 'Verde' | 'Naranja' | 'Rojo';
+/**
+ * Tipos de dominio compartidos entre cliente y servidor.
+ * Los tipos de API response viven en apiTypes.ts.
+ */
 
-export interface CausaProbable {
-  descripcion: string;
-  probabilidad: number; 
-}
-
+/** Taller mecánico tal como aparece en la pantalla de mapa. */
 export interface Taller {
   id: string;
   nombre: string;
   especialidad: string;
   distancia: string;
-  telefono: string;
-}
-
-export interface DiagnosticoMock {
-  id: string;
-  sintomaIngresado: string;
-  nivelUrgencia: NivelUrgencia;
-  clasificacion: string; // "Leve", "Moderada" o "Crítica" 
-  indicaciones: string;
-  causas: CausaProbable[];
-  tallerRecomendado: Taller;
 }

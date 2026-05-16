@@ -1,50 +1,56 @@
-// src/services/ai.ts
+/**
+ * ai.ts - Servicio de comunicación con el servidor de diagnóstico.
+ * PRINCIPIO: Responsabilidad unica - solo comunica con la API.
+ * 
+ * La lógica de respaldo y reintento se maneja en los hooks (useDiagnosisFetch).
+ * La configuración de URLs y rutas está en constants/api.ts.
+ */
 
-// IMPORTANTE: Si usas el emulador de Android de Android Studio, usa 'http://10.0.2.2:3001'
-// Si usas tu celular físico con Expo Go, debes poner la IP de tu computadora, ej: 'http://192.168.x.x:3001'
-// src/services/ai.ts
-import { Platform } from 'react-native';
+import { DiagnosticoResponse } from '../types/apiTypes';
+import { API_BASE_URL, API_ENDPOINTS, API_CONFIG } from '../constants/api';
+import { ERROR_MESSAGES } from '../utils/errorMessages';
 
-// Esta función decide qué URL usar automáticamente
-const getApiUrl = () => {
-    // __DEV__ es una variable global de React Native que es true cuando estás programando
-    // y false cuando compilas la app final (APK o AAB)
-    if (__DEV__) {
-        // Si estás en el emulador de Android Studio, usa la ruta mágica de Android
-        if (Platform.OS === 'android') {
-            return 'http://10.0.2.2:3001';
-        }
-        // Si estás en iOS o usando Expo Go en tu celular físico, usa tu IP de red.
-        // (Asegúrate de poner tu IPv4 real aquí)
-        return 'http://192.168.0.15:3001';
+/**
+ * Envía los síntomas y perfil del vehículo al servidor para obtener un diagnóstico.
+ * El servidor consulta a Ollama (IA local) y retorna un objeto DiagnosticoResponse
+ * con nivel de urgencia, causas probables y razonamiento.
+ *
+ * @param sintomas - Descripción textual de los síntomas del vehículo
+ * @param perfilVehiculo - Información del vehículo (marca, modelo, año)
+ * @returns Objeto con el diagnóstico completo generado por la IA
+ * @throws Error si el servidor no está disponible o responde con error
+ */
+export const solicitarDiagnostico = async (
+  sintomas: string,
+  perfilVehiculo: string
+): Promise<DiagnosticoResponse> => {
+  try {
+    const url = `${API_BASE_URL}${API_ENDPOINTS.diagnosticar}`;
+
+    const response = await Promise.race([
+      fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ sintomas, perfilVehiculo }),
+      }),
+      new Promise<Response>((_, reject) =>
+        setTimeout(
+          () => reject(new Error('Request timeout')),
+          API_CONFIG.requestTimeout
+        )
+      ),
+    ]);
+
+    if (!response.ok) {
+      throw new Error(`Servidor respondió con estado ${response.status}`);
     }
 
-    // Cuando subas tu servidor Node a producción (ej. Render, Railway, AWS), pones esa URL aquí
-    return 'https://api.tu-app-vehicular.com';
-};
-
-const API_URL = getApiUrl();
-
-export const solicitarDiagnostico = async (sintomas: string, perfilVehiculo: string) => {
-    try {
-        const response = await fetch(`${API_URL}/diagnosticar`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ sintomas, perfilVehiculo }),
-        });
-
-        if (!response.ok) {
-            throw new Error('Servidor responde con error');
-        }
-
-        const data = await response.json();
-        return data; // Retorna el JSON directo a la pantalla
-
-    } catch (error) {
-        console.error('Error de conexión:', error);
-        // ✅ Manejo de error claro para el usuario
-        throw new Error('El servidor de diagnóstico no está disponible en este momento. Por favor, revisa tu conexión o intenta de nuevo más tarde.');
-    }
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error de conexión:', error);
+    throw new Error(ERROR_MESSAGES.SERVER_UNAVAILABLE);
+  }
 };

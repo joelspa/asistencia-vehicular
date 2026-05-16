@@ -1,262 +1,407 @@
+/** Mapa Leaflet con talleres cercanos, filtros por categoría y panel inferior arrastrable. */
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ActivityIndicator, Dimensions,
-  TouchableOpacity, Linking, Platform,
+  TouchableOpacity, Linking, ScrollView,
 } from 'react-native';
 import Animated, {
   useSharedValue, useAnimatedStyle, withSpring, runOnJS,
+  useAnimatedScrollHandler,
 } from 'react-native-reanimated';
-import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
-import { LucideNavigation, LucideStar, LucideMapPin, LucideWrench } from 'lucide-react-native';
+import * as Location from 'expo-location';
+import { Navigation, MapPin, ChevronUp } from 'lucide-react-native';
+import { useRoute, RouteProp } from '@react-navigation/native';
+import { useTheme } from '../context/ThemeContext';
+import { TabParamList } from '../types/navigation';
+import { mockTalleres } from '../data/mockData';
+import { generateLeafletMapHtml } from '../constants/html';
+import { getApiBaseUrl } from '../constants/api';
+import { CategoryKey, CATEGORY_CONFIG, getCategoryKey } from '../utils/categoryClassifier';
 
-import { colors } from '../theme/colors';
-import { BottomTabs } from '../components/BottomTabs';
+const SCREEN_HEIGHT = Dimensions.get('window').height;
+const SHEET_COLLAPSED = 220;
+const SHEET_EXPANDED = SCREEN_HEIGHT * 0.65;
+const SHEET_COLLAPSED_OFFSET = SHEET_EXPANDED - SHEET_COLLAPSED;
+const SPRING_CONFIG = { damping: 22, stiffness: 220, mass: 0.8 };
 
-const { height: SCREEN_HEIGHT } = Dimensions.get('window');
-const SHEET_EXPANDED = SCREEN_HEIGHT * 0.6; // Altura cuando está abierto
-const SHEET_COLLAPSED = 180; // Altura cuando está cerrado
-const SNAP_POINT_CLOSED = SHEET_EXPANDED - SHEET_COLLAPSED;
-
-const MOCK_TALLERES = [
-  { id: '1', name: 'Mecánica El Rayo', specialty: 'Motores y Frenos', dist: '1.2 km', lat: -17.7831, lng: -63.1822, recommended: true },
-  { id: '2', name: 'Taller Chiriguano', specialty: 'Electrónica Automotriz', dist: '2.5 km', lat: -17.7865, lng: -63.1788, recommended: false },
-  { id: '3', name: 'AutoFix SC', specialty: 'Mantenimiento General', dist: '3.1 km', lat: -17.7801, lng: -63.1905, recommended: false },
-  { id: '4', name: 'Repuestos Warnes', specialty: 'Cajas de Cambio', dist: '0.8 km', lat: -17.7845, lng: -63.1810, recommended: false },
-];
+interface TallerDisplay {
+  id: string;
+  nombre: string;
+  distancia: string;
+  especialidad: string;
+  latitud: number;
+  longitud: number;
+}
 
 export default function MapScreen() {
+  const { colors, isDark } = useTheme();
   const insets = useSafeAreaInsets();
-  const [selectedTaller, setSelectedTaller] = useState(MOCK_TALLERES[0]);
-  
-  // --- LÓGICA DE ANIMACIÓN (REANIMATED) ---
-  const translateY = useSharedValue(SNAP_POINT_CLOSED);
-  const context = useSharedValue(0);
+  const webViewRef = useRef<WebView>(null);
+  const route = useRoute<RouteProp<TabParamList, 'Mapa'>>();
+  const especialidadesParam = route.params?.especialidades;
 
-  const gesture = Gesture.Pan()
-    .onStart(() => {
-      context.value = translateY.value;
+  const [talleres, setTalleres] = useState<TallerDisplay[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [mapHtml, setMapHtml] = useState<string | null>(null);
+  const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [sheetExpanded, setSheetExpanded] = useState(false);
+  const [activeFilter, setActiveFilter] = useState<CategoryKey | null>(null);
+
+  const translateY = useSharedValue(SHEET_COLLAPSED_OFFSET);
+  const startY = useSharedValue(SHEET_COLLAPSED_OFFSET);
+  const scrollY = useSharedValue(0);
+
+  const scrollHandler = useAnimatedScrollHandler({
+    onScroll: (e) => { scrollY.value = e.contentOffset.y; },
+  });
+
+  const applySheetSnap = (goExpand: boolean) => setSheetExpanded(goExpand);
+
+  const handleGesture = Gesture.Pan()
+    .onStart(() => { startY.value = translateY.value; })
+    .onUpdate((e) => {
+      translateY.value = Math.max(0, Math.min(SHEET_COLLAPSED_OFFSET, startY.value + e.translationY));
     })
-    .onUpdate((event) => {
-      translateY.value = event.translationY + context.value;
-      // Limites: No dejar subir más de 0 ni bajar más del punto cerrado
-      translateY.value = Math.max(translateY.value, 0);
-      translateY.value = Math.min(translateY.value, SNAP_POINT_CLOSED);
+    .onEnd((e) => {
+      const goExpand = e.velocityY < -500 || translateY.value < SHEET_COLLAPSED_OFFSET / 2;
+      translateY.value = withSpring(goExpand ? 0 : SHEET_COLLAPSED_OFFSET, SPRING_CONFIG);
+      runOnJS(applySheetSnap)(goExpand);
+    });
+
+  const scrollCollapseGesture = Gesture.Pan()
+    .onStart(() => { startY.value = translateY.value; })
+    .onUpdate((e) => {
+      if (e.translationY > 0 && scrollY.value <= 0)
+        translateY.value = Math.min(SHEET_COLLAPSED_OFFSET, startY.value + e.translationY);
     })
-    .onEnd(() => {
-      if (translateY.value < SNAP_POINT_CLOSED / 2) {
-        translateY.value = withSpring(0, { damping: 20 });
+    .onEnd((e) => {
+      if (translateY.value > SHEET_COLLAPSED_OFFSET * 0.25 || e.velocityY > 600) {
+        translateY.value = withSpring(SHEET_COLLAPSED_OFFSET, SPRING_CONFIG);
+        runOnJS(applySheetSnap)(false);
       } else {
-        translateY.value = withSpring(SNAP_POINT_CLOSED, { damping: 20 });
+        translateY.value = withSpring(0, SPRING_CONFIG);
+        runOnJS(applySheetSnap)(true);
       }
     });
 
-  const animatedStyle = useAnimatedStyle(() => ({
+  const bodyGesture = Gesture.Simultaneous(scrollCollapseGesture, Gesture.Native());
+
+  const animatedSheetStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: translateY.value }],
   }));
 
-  // --- MAPA HTML ---
-  const mapHtml = useMemo(() => {
-    const centerLat = -17.7831;
-    const centerLng = -63.1822;
-    const markers = MOCK_TALLERES.map(t => `
-      L.marker([${t.lat}, ${t.lng}], {
-        icon: L.divIcon({
-          className: 'custom-pin',
-          html: '<div style="background-color:${t.recommended ? '#FF6B00' : '#444'}; width:30px; height:30px; border-radius:50%; border:3px solid white; box-shadow:0 2px 10px rgba(0,0,0,0.3); display:flex; align-items:center; justify-content:center;"><div style="width:8px; height:8px; background:white; border-radius:50%;"></div></div>',
-          iconSize: [30, 30], iconAnchor: [15, 30]
-        })
-      }).addTo(map).on('click', () => window.ReactNativeWebView.postMessage(JSON.stringify(${JSON.stringify(t)})));
-    `).join('');
+  const expandSheet = () => {
+    setSheetExpanded(true);
+    translateY.value = withSpring(0, SPRING_CONFIG);
+  };
 
-    return `
-      <!DOCTYPE html><html><head>
-      <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-      <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-      <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-      <style>
-        body { margin: 0; padding: 0; } #map { height: 100vh; width: 100vw; background: #f0f0f0; }
-        .leaflet-control-zoom { display: none; }
-      </style>
-      </head><body><div id="map"></div><script>
-        var map = L.map('map', { zoomControl: false }).setView([${centerLat}, ${centerLng}], 15);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-        ${markers}
-      </script></body></html>
-    `;
-  }, []);
+  const collapseSheet = () => {
+    setSheetExpanded(false);
+    translateY.value = withSpring(SHEET_COLLAPSED_OFFSET, SPRING_CONFIG);
+  };
+
+  const handleFilter = (cat: CategoryKey | null) => {
+    setActiveFilter(cat);
+    webViewRef.current?.injectJavaScript(
+      `if (window.filterMarkers) window.filterMarkers('${cat ?? 'all'}'); true;`
+    );
+  };
+
+  const availableCategories = useMemo<CategoryKey[]>(() => {
+    const seen = new Set<CategoryKey>();
+    talleres.forEach(t => seen.add(getCategoryKey(t.especialidad)));
+    return [...seen];
+  }, [talleres]);
+
+  // Primera categoría del diagnóstico que tenga talleres reales; null = mostrar todos
+  const autoFilterCat = useMemo<CategoryKey | null>(() => {
+    if (!especialidadesParam?.length || !availableCategories.length) return null;
+    const available = new Set(availableCategories);
+    return especialidadesParam.map(getCategoryKey).find(cat => available.has(cat)) ?? null;
+  }, [especialidadesParam, availableCategories]);
+
+  useEffect(() => {
+    if (autoFilterCat) setActiveFilter(autoFilterCat);
+  }, [autoFilterCat]);
+
+  const filteredTalleres = useMemo(() =>
+    activeFilter ? talleres.filter(t => getCategoryKey(t.especialidad) === activeFilter) : talleres,
+    [talleres, activeFilter]
+  );
+
+  const abrirRuta = (taller: TallerDisplay) => {
+    const origin = userCoords ? `${userCoords.lat},${userCoords.lng}` : '';
+    const dest = `${taller.latitud},${taller.longitud}`;
+    Linking.openURL(`https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${dest}&travelmode=driving`);
+  };
+
+  useEffect(() => { inicializarMapa(); }, []);
+
+  async function inicializarMapa() {
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      let lat = -17.7863, lng = -63.1812;
+      if (status === 'granted') {
+        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        lat = loc.coords.latitude;
+        lng = loc.coords.longitude;
+      }
+      setUserCoords({ lat, lng });
+
+      let talleresParaMapa: { nombre: string; latitud: number; longitud: number; especialidad?: string }[] = [];
+      try {
+        const res = await fetch(`${getApiBaseUrl()}/talleres?lat=${lat}&lng=${lng}`);
+        const data = await res.json();
+        if (data.talleres?.length) {
+          talleresParaMapa = data.talleres;
+          setTalleres(data.talleres.slice(0, 15).map((t: any) => ({
+            id: String(t.id), nombre: t.nombre,
+            distancia: t.distancia || `${t.distanciaKm} km`,
+            especialidad: t.especialidad || 'General',
+            latitud: t.latitud, longitud: t.longitud,
+          })));
+        } else throw new Error();
+      } catch {
+        talleresParaMapa = mockTalleres.map(t => ({
+          nombre: t.nombre, latitud: t.coordenadas.lat, longitud: t.coordenadas.lng,
+          especialidad: t.especialidad,
+        }));
+        setTalleres(mockTalleres.map(t => ({
+          id: t.id, nombre: t.nombre, distancia: t.distancia,
+          especialidad: t.especialidad, latitud: t.coordenadas.lat, longitud: t.coordenadas.lng,
+        })));
+      }
+      setMapHtml(generateLeafletMapHtml(lat, lng, insets.top + 8, talleresParaMapa, isDark));
+    } catch (e) {
+      console.error('Error al inicializar mapa:', e);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const s = useMemo(() => StyleSheet.create({
+    screen: { flex: 1, backgroundColor: colors.appBackground },
+    mapArea: { flex: 1 },
+    webview: { flex: 1 },
+    mapPlaceholder: {
+      flex: 1, alignItems: 'center', justifyContent: 'center',
+      backgroundColor: isDark ? '#1D2136' : '#DDE6F0',
+    },
+    loadingText: { marginTop: 12, fontSize: 14, color: colors.secondaryText },
+
+    sheet: {
+      position: 'absolute', bottom: 0, left: 0, right: 0,
+      height: SHEET_EXPANDED,
+      backgroundColor: colors.cardBackground,
+      borderTopLeftRadius: 24, borderTopRightRadius: 24,
+      elevation: 24,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: -8 },
+      shadowOpacity: isDark ? 0.4 : 0.12,
+      shadowRadius: 20,
+    },
+    handleArea: { alignItems: 'center', paddingTop: 10, paddingBottom: 6 },
+    dragHandle: { width: 40, height: 4, backgroundColor: colors.borderColor, borderRadius: 2 },
+
+    // Filtros
+    filterScroll: { maxHeight: 44 },
+    filterContent: {
+      paddingHorizontal: 16, paddingBottom: 8, gap: 8, flexDirection: 'row', alignItems: 'center',
+    },
+    filterChip: {
+      flexDirection: 'row', alignItems: 'center', gap: 5,
+      paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999,
+      borderWidth: 1.5, borderColor: colors.borderColor,
+      backgroundColor: colors.cardBackground,
+    },
+    filterChipText: { fontSize: 12, fontWeight: '600', color: colors.secondaryText },
+
+    sheetHeader: {
+      flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+      paddingHorizontal: 20, marginBottom: 8,
+    },
+    sheetTitle: { fontSize: 15, fontWeight: '800', color: colors.primaryText },
+    sheetSub: { fontSize: 11.5, color: colors.tertiaryText, marginTop: 2 },
+    expandToggle: {
+      width: 36, height: 36, borderRadius: 10,
+      backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center',
+    },
+
+    sheetScroll: { flex: 1, paddingHorizontal: 16 },
+    tallerCard: {
+      flexDirection: 'row', alignItems: 'center',
+      paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.surface2, gap: 12,
+    },
+    tallerIconWrap: {
+      width: 36, height: 36, borderRadius: 10,
+      alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+    },
+    tallerInfo: { flex: 1 },
+    tallerName: { fontSize: 14.5, fontWeight: '700', color: colors.primaryText, marginBottom: 5 },
+    tallerMeta: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+    tallerDist: { fontSize: 12, color: colors.tertiaryText, fontWeight: '500' },
+    tallerBadge: {
+      backgroundColor: colors.surface2, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 100,
+    },
+    tallerBadgeText: { fontSize: 11, color: colors.secondaryText, fontWeight: '600' },
+    routeBtn: {
+      backgroundColor: colors.navy, paddingHorizontal: 14, paddingVertical: 10,
+      borderRadius: 10, flexDirection: 'row', alignItems: 'center', gap: 5,
+      elevation: 2, shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 4,
+    },
+    routeBtnText: { fontSize: 13, fontWeight: '700', color: '#fff' },
+    emptyFilter: { alignItems: 'center', paddingTop: 32, gap: 8 },
+    emptyFilterText: { fontSize: 14, color: colors.tertiaryText, fontWeight: '500' },
+  }), [colors, isDark]);
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <View style={styles.container}>
-        
-        {/* Capa 1: Mapa */}
-        <WebView
-          originWhitelist={['*']}
-          source={{ html: mapHtml }}
-          style={styles.map}
-          onMessage={(e) => setSelectedTaller(JSON.parse(e.nativeEvent.data))}
-        />
+    <View style={s.screen}>
+      <View style={s.mapArea}>
+        {mapHtml ? (
+          <WebView
+            ref={webViewRef}
+            source={{ html: mapHtml }}
+            style={s.webview}
+            javaScriptEnabled
+            domStorageEnabled
+            scrollEnabled={false}
+            onLoadEnd={() => {
+              if (!especialidadesParam?.length) return;
+              const available = new Set(talleres.map(t => getCategoryKey(t.especialidad)));
+              const match = especialidadesParam.map(getCategoryKey).find(cat => available.has(cat));
+              if (match) {
+                webViewRef.current?.injectJavaScript(
+                  `if (window.filterMarkers) window.filterMarkers('${match}'); true;`
+                );
+              }
+            }}
+            onMessage={(e) => {
+              if (e.nativeEvent.data === 'collapse') collapseSheet();
+            }}
+          />
+        ) : (
+          <View style={s.mapPlaceholder}>
+            <ActivityIndicator size="large" color={colors.brand} />
+            <Text style={s.loadingText}>Cargando mapa...</Text>
+          </View>
+        )}
+      </View>
 
-        {/* Capa 2: Bottom Sheet Arrastrable */}
-        <GestureDetector gesture={gesture}>
-          <Animated.View style={[styles.bottomSheet, animatedStyle]}>
-            {/* Indicador visual de arrastre */}
-            <View style={styles.handleContainer}>
-              <View style={styles.handle} />
-            </View>
-
-            <View style={styles.content}>
-              <View style={styles.header}>
-                <View style={styles.iconBox}>
-                  <LucideWrench color="#FF6B00" size={22} />
-                </View>
-                <View style={styles.titleInfo}>
-                  <Text style={styles.name}>{selectedTaller.name}</Text>
-                  <Text style={styles.specialty}>{selectedTaller.specialty}</Text>
-                </View>
-                {selectedTaller.recommended && (
-                  <View style={styles.starBadge}>
-                    <LucideStar size={12} color="#F57C00" fill="#F57C00" />
-                  </View>
-                )}
-              </View>
-
-              <View style={styles.divider} />
-
-              <View style={styles.footer}>
-                <View>
-                  <View style={styles.row}>
-                    <LucideMapPin size={14} color="#666" />
-                    <Text style={styles.distance}>A {selectedTaller.dist} de distancia</Text>
-                  </View>
-                  <Text style={styles.status}>Abierto ahora</Text>
-                </View>
-
-                <TouchableOpacity 
-                  style={styles.btnIr} 
-                  onPress={() => Linking.openURL(`geo:${selectedTaller.lat},${selectedTaller.lng}?q=${selectedTaller.name}`)}
-                >
-                  <LucideNavigation color="white" size={20} />
-                  <Text style={styles.btnText}>IR</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </Animated.View>
+      <Animated.View style={[s.sheet, animatedSheetStyle]}>
+        {/* Handle */}
+        <GestureDetector gesture={handleGesture}>
+          <View style={s.handleArea}>
+            <View style={s.dragHandle} />
+          </View>
         </GestureDetector>
 
-        {/* Capa 3: Tabs (Siempre fijos) */}
-        <BottomTabs />
-      </View>
-    </GestureHandlerRootView>
+        {/* Filtros por categoría */}
+        {availableCategories.length > 1 && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={s.filterScroll}
+            contentContainerStyle={s.filterContent}
+          >
+            <TouchableOpacity
+              style={[s.filterChip, !activeFilter && { backgroundColor: colors.brand, borderColor: colors.brand }]}
+              onPress={() => handleFilter(null)}
+              activeOpacity={0.8}
+            >
+              <Text style={[s.filterChipText, !activeFilter && { color: '#fff', fontWeight: '700' }]}>
+                Todos
+              </Text>
+            </TouchableOpacity>
+            {availableCategories.map(cat => {
+              const cfg = CATEGORY_CONFIG[cat];
+              const active = activeFilter === cat;
+              return (
+                <TouchableOpacity
+                  key={cat}
+                  style={[s.filterChip, active && { backgroundColor: cfg.color, borderColor: cfg.color }]}
+                  onPress={() => handleFilter(active ? null : cat)}
+                  activeOpacity={0.8}
+                >
+                  <cfg.Icon color={active ? '#fff' : cfg.color} size={12} strokeWidth={2.5} />
+                  <Text style={[s.filterChipText, active && { color: '#fff', fontWeight: '700' }]}>
+                    {cfg.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        )}
+
+        {/* Header */}
+        <View style={s.sheetHeader}>
+          <View>
+            <Text style={s.sheetTitle}>
+              {filteredTalleres.length} taller{filteredTalleres.length !== 1 ? 'es' : ''}
+              {activeFilter ? ` · ${CATEGORY_CONFIG[activeFilter].label}` : ' cercanos'}
+            </Text>
+            <Text style={s.sheetSub}>Ordenados por distancia</Text>
+          </View>
+          <TouchableOpacity
+            style={s.expandToggle}
+            onPress={sheetExpanded ? collapseSheet : expandSheet}
+            activeOpacity={0.7}
+          >
+            <ChevronUp
+              color={colors.tertiaryText}
+              size={18}
+              style={{ transform: [{ rotate: sheetExpanded ? '180deg' : '0deg' }] }}
+            />
+          </TouchableOpacity>
+        </View>
+
+        {loading ? (
+          <ActivityIndicator color={colors.brand} style={{ marginTop: 24 }} />
+        ) : (
+          <GestureDetector gesture={bodyGesture}>
+            <Animated.ScrollView
+              style={s.sheetScroll}
+              showsVerticalScrollIndicator={false}
+              nestedScrollEnabled
+              scrollEventThrottle={16}
+              onScroll={scrollHandler}
+            >
+              {filteredTalleres.length === 0 ? (
+                <View style={s.emptyFilter}>
+                  <Text style={s.emptyFilterText}>Sin talleres en esta categoría</Text>
+                </View>
+              ) : filteredTalleres.map((t) => {
+                const cat = getCategoryKey(t.especialidad);
+                const cfg = CATEGORY_CONFIG[cat];
+                return (
+                  <View key={t.id} style={s.tallerCard}>
+                    <View style={[s.tallerIconWrap, { backgroundColor: `${cfg.color}22` }]}>
+                      <cfg.Icon color={cfg.color} size={16} strokeWidth={2.2} />
+                    </View>
+                    <View style={s.tallerInfo}>
+                      <Text style={s.tallerName} numberOfLines={1}>{t.nombre}</Text>
+                      <View style={s.tallerMeta}>
+                        <MapPin color={colors.tertiaryText} size={11} />
+                        <Text style={s.tallerDist}>{t.distancia}</Text>
+                        <View style={s.tallerBadge}>
+                          <Text style={s.tallerBadgeText}>{t.especialidad}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <TouchableOpacity style={s.routeBtn} onPress={() => abrirRuta(t)} activeOpacity={0.8}>
+                      <Navigation color="#fff" size={13} strokeWidth={2.2} />
+                      <Text style={s.routeBtnText}>Ir</Text>
+                    </TouchableOpacity>
+                  </View>
+                );
+              })}
+            </Animated.ScrollView>
+          </GestureDetector>
+        )}
+      </Animated.View>
+    </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: 'white' },
-  map: { flex: 1 },
-  bottomSheet: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0, // Inicia desde abajo
-    height: SHEET_EXPANDED,
-    backgroundColor: 'white',
-    borderTopLeftRadius: 32,
-    borderTopRightRadius: 32,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -10 },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    elevation: 20,
-    paddingBottom: 80, // Espacio para los BottomTabs
-  },
-  handleContainer: {
-    width: '100%',
-    height: 30,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  handle: {
-    width: 40,
-    height: 5,
-    backgroundColor: '#E0E0E0',
-    borderRadius: 10,
-  },
-  content: {
-    paddingHorizontal: 24,
-    paddingTop: 10,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  iconBox: {
-    width: 48,
-    height: 48,
-    backgroundColor: '#FFF0E6',
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  titleInfo: {
-    flex: 1,
-    marginLeft: 15,
-  },
-  name: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1A1A1A',
-  },
-  specialty: {
-    fontSize: 14,
-    color: '#666',
-    marginTop: 2,
-  },
-  starBadge: {
-    backgroundColor: '#FFF8E1',
-    padding: 8,
-    borderRadius: 12,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: '#F0F0F0',
-    marginVertical: 20,
-  },
-  footer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-  },
-  distance: {
-    fontSize: 13,
-    color: '#666',
-  },
-  status: {
-    fontSize: 13,
-    color: '#2E7D32',
-    fontWeight: '600',
-    marginTop: 4,
-  },
-  btnIr: {
-    backgroundColor: '#FF6B00',
-    flexDirection: 'row',
-    paddingVertical: 14,
-    paddingHorizontal: 25,
-    borderRadius: 20,
-    alignItems: 'center',
-    gap: 8,
-    elevation: 4,
-  },
-  btnText: {
-    color: 'white',
-    fontWeight: '800',
-    fontSize: 16,
-  },
-});
