@@ -27,7 +27,7 @@ const THEME_OPTIONS: { label: string; value: ThemePreference; Icon: typeof Sun }
 ];
 
 export default function SettingsScreen() {
-  const { colors, preference, setPreference } = useTheme();
+  const { colors, isDark, preference, setPreference } = useTheme();
   const { phase, activate, deactivate, contacto, saveContacto } = useModoMotoContext();
   const [editandoContacto, setEditandoContacto] = useState(false);
   const [contactoTemp, setContactoTemp] = useState('');
@@ -122,13 +122,13 @@ export default function SettingsScreen() {
       borderBottomWidth: 1.5, borderBottomColor: colors.brand, paddingVertical: 6, fontWeight: '600',
     },
 
-    fuelSection:     { paddingHorizontal: 16, paddingVertical: 14, gap: 10 },
-    fuelLabelRow:    { flexDirection: 'row', alignItems: 'center', gap: 6 },
-    fuelOptions:     { flexDirection: 'row', gap: 8 },
-    fuelOption:      { flex: 1, paddingVertical: 12, borderRadius: 10, borderWidth: 1.5, borderColor: colors.borderColor, alignItems: 'center' },
-    fuelOptionActive:{ borderColor: colors.brand, backgroundColor: colors.brandSoft },
-    fuelOptionText:       { fontSize: 13, fontWeight: '500', color: colors.secondaryText },
-    fuelOptionTextActive: { color: colors.brand, fontWeight: '700' },
+    segmentSection:     { paddingHorizontal: 16, paddingVertical: 14, gap: 10 },
+    segmentLabelRow:    { flexDirection: 'row', alignItems: 'center', gap: 6 },
+    segmentOptions:     { flexDirection: 'row', gap: 8 },
+    segmentOption:      { flex: 1, paddingVertical: 12, borderRadius: 10, borderWidth: 1.5, borderColor: colors.borderColor, alignItems: 'center' },
+    segmentOptionActive:{ borderColor: colors.brand, backgroundColor: colors.brandSoft },
+    segmentText:       { fontSize: 13, fontWeight: '500', color: colors.secondaryText },
+    segmentTextActive: { color: colors.brand, fontWeight: '700' },
 
     aboutRow:      { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14 },
     aboutLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
@@ -204,7 +204,7 @@ export default function SettingsScreen() {
           {/* Hero card vehículo */}
           <View style={s.vehicleHero}>
             <View style={s.heroDecor} pointerEvents="none">
-              <Car color="rgba(255,255,255,0.06)" size={180} strokeWidth={1.4} />
+              <Car color={isDark ? 'rgba(255,255,255,0.10)' : 'rgba(255,255,255,0.06)'} size={180} strokeWidth={1.4} />
             </View>
             <Text style={s.heroBadge}>Vehículo activo</Text>
             <Text style={s.heroVehicleName}>{vehicleName}</Text>
@@ -253,20 +253,20 @@ export default function SettingsScreen() {
             ))}
 
             {/* Combustible */}
-            <View style={s.fuelSection}>
-              <View style={s.fuelLabelRow}>
+            <View style={s.segmentSection}>
+              <View style={s.segmentLabelRow}>
                 <Fuel color={colors.tertiaryText} size={14} />
                 <Text style={s.rowLabel}>Combustible</Text>
               </View>
-              <View style={s.fuelOptions}>
+              <View style={s.segmentOptions}>
                 {FUEL_OPTIONS.map((fuel) => (
                   <TouchableOpacity
                     key={fuel}
-                    style={[s.fuelOption, perfilTemp.combustible === fuel && s.fuelOptionActive]}
+                    style={[s.segmentOption, perfilTemp.combustible === fuel && s.segmentOptionActive]}
                     onPress={() => handleFuelChange(fuel)}
                     activeOpacity={0.8}
                   >
-                    <Text style={[s.fuelOptionText, perfilTemp.combustible === fuel && s.fuelOptionTextActive]}>
+                    <Text style={[s.segmentText, perfilTemp.combustible === fuel && s.segmentTextActive]}>
                       {fuel}
                     </Text>
                   </TouchableOpacity>
@@ -280,16 +280,16 @@ export default function SettingsScreen() {
             <Text style={s.sectionLabelText}>APARIENCIA</Text>
           </View>
           <View style={s.card}>
-            <View style={s.fuelSection}>
-              <View style={s.fuelLabelRow}>
+            <View style={s.segmentSection}>
+              <View style={s.segmentLabelRow}>
                 <Sun color={colors.tertiaryText} size={14} />
                 <Text style={s.rowLabel}>Tema</Text>
               </View>
-              <View style={s.fuelOptions}>
+              <View style={s.segmentOptions}>
                 {THEME_OPTIONS.map((opt) => (
                   <TouchableOpacity
                     key={opt.value}
-                    style={[s.fuelOption, preference === opt.value && s.fuelOptionActive]}
+                    style={[s.segmentOption, preference === opt.value && s.segmentOptionActive]}
                     onPress={() => setPreference(opt.value)}
                     activeOpacity={0.8}
                   >
@@ -298,7 +298,7 @@ export default function SettingsScreen() {
                       size={16}
                       strokeWidth={2}
                     />
-                    <Text style={[s.fuelOptionText, preference === opt.value && s.fuelOptionTextActive]}>
+                    <Text style={[s.segmentText, preference === opt.value && s.segmentTextActive]}>
                       {opt.label}
                     </Text>
                   </TouchableOpacity>

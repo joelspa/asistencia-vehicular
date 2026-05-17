@@ -19,7 +19,7 @@ import { TabParamList } from '../types/navigation';
 import { mockTalleres } from '../data/mockData';
 import { generateLeafletMapHtml } from '../constants/html';
 import { getApiBaseUrl } from '../constants/api';
-import { CategoryKey, CATEGORY_CONFIG, getCategoryKey } from '../utils/categoryClassifier';
+import { CategoryKey, getCategoryConfig, getCategoryKey } from '../utils/categoryClassifier';
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
 const SHEET_COLLAPSED = 220;
@@ -38,6 +38,7 @@ interface TallerDisplay {
 
 export default function MapScreen() {
   const { colors, isDark } = useTheme();
+  const CATEGORY_CONFIG = useMemo(() => getCategoryConfig(isDark), [isDark]);
   const insets = useSafeAreaInsets();
   const webViewRef = useRef<WebView>(null);
   const route = useRoute<RouteProp<TabParamList, 'Mapa'>>();
@@ -198,7 +199,7 @@ export default function MapScreen() {
     webview: { flex: 1 },
     mapPlaceholder: {
       flex: 1, alignItems: 'center', justifyContent: 'center',
-      backgroundColor: isDark ? '#1D2136' : '#DDE6F0',
+      backgroundColor: colors.surface2,
     },
     loadingText: { marginTop: 12, fontSize: 14, color: colors.secondaryText },
 
@@ -388,7 +389,7 @@ export default function MapScreen() {
                 const cfg = CATEGORY_CONFIG[cat];
                 return (
                   <View key={t.id} style={s.tallerCard}>
-                    <View style={[s.tallerIconWrap, { backgroundColor: `${cfg.color}22` }]}>
+                    <View style={[s.tallerIconWrap, { backgroundColor: `${cfg.color}${isDark ? '33' : '22'}` }]}>
                       <cfg.Icon color={cfg.color} size={16} strokeWidth={2.2} />
                     </View>
                     <View style={s.tallerInfo}>

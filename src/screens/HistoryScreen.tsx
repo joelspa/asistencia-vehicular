@@ -12,7 +12,7 @@ import { RootStackParamList, TabParamList } from '../types/navigation';
 import { useColors } from '../context/ThemeContext';
 import FilterPill from '../components/FilterPill';
 import { EntradaHistorial, obtenerHistorial } from '../services/storage';
-import { UrgencyLevel, urgencyConfigs } from '../constants/urgency';
+import { UrgencyLevel, getUrgencyConfig } from '../constants/urgency';
 import { formatearFechaRelativa } from '../utils/dateFormatter';
 
 type FilterType = 'todo' | UrgencyLevel;
@@ -72,6 +72,7 @@ function StatsRow({ counts }: { counts: Record<UrgencyLevel, number> }) {
 }
 
 function FilterBar({ activeFilter, onChange }: { activeFilter: FilterType; onChange: (f: FilterType) => void }) {
+  const colors = useColors();
   return (
     <View style={sl.filters}>
       {FILTER_OPTIONS.map(({ label, value }) => (
@@ -79,7 +80,7 @@ function FilterBar({ activeFilter, onChange }: { activeFilter: FilterType; onCha
           key={value}
           label={label}
           active={activeFilter === value}
-          dotColor={value !== 'todo' ? urgencyConfigs[value as UrgencyLevel].badgeColor : undefined}
+          dotColor={value !== 'todo' ? getUrgencyConfig(value, colors).badgeColor : undefined}
           onPress={() => onChange(value)}
         />
       ))}
@@ -123,7 +124,7 @@ function EmptyState({ activeFilter, onNavigateToDiagnosis }: {
 function DiagnosticCard({ entry, onPress }: { entry: EntradaHistorial; onPress: () => void }) {
   const colors = useColors();
   const level = entry.diagnostico.urgency_level as UrgencyLevel;
-  const config = urgencyConfigs[level] ?? urgencyConfigs.moderada;
+  const config = getUrgencyConfig(level, colors);
   const IconComp = URGENCY_ICONS[level] ?? AlertTriangle;
   const barColorMap: Record<UrgencyLevel, string> = {
     critica: colors.critRed, moderada: colors.warnOrange, leve: colors.safeGreen,
@@ -241,7 +242,7 @@ const sl = StyleSheet.create({
     elevation: 2, shadowOffset: { width: 0, height: 2 },
     position: 'relative', overflow: 'hidden',
   },
-  colorBar:   { position: 'absolute', left: 0, top: 14, bottom: 14, width: 3, borderRadius: 3 },
+  colorBar:   { position: 'absolute', left: 0, top: 0, bottom: 0, width: 3 },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
   badge:      { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 9, paddingVertical: 4, borderRadius: 100 },
   badgeText:  { fontSize: 10.5, fontWeight: '800', letterSpacing: 0.3, textTransform: 'uppercase' },

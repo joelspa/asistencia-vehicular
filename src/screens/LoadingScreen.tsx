@@ -12,16 +12,24 @@ import { useDiagnosisFetch } from '../hooks/useDiagnosisFetch';
 
 type LoadingRoute = RouteProp<RootStackParamList, 'Carga'>;
 
+function withAlpha(hex: string, alpha: number): string {
+  const a = Math.round(Math.max(0, Math.min(1, alpha)) * 255).toString(16).padStart(2, '0');
+  return `${hex}${a}`;
+}
+
+const CONNECTOR_FILL_BY_STEP: Record<1 | 2 | 3, number> = { 1: 0, 2: 56, 3: 110 };
+
 export default function LoadingScreen() {
   const colors = useColors();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute<LoadingRoute>();
   const { sintomas, perfilVehiculo } = route.params;
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState<1 | 2 | 3>(1);
   const [progress, setProgress] = useState(0);
   const [showError, setShowError] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const pulseAnim = useRef(new Animated.Value(0.85)).current;
+  const connectorAnim = useRef(new Animated.Value(0)).current;
 
   const { fetchDiagnosis } = useDiagnosisFetch();
 
@@ -33,6 +41,14 @@ export default function LoadingScreen() {
       ])
     ).start();
   }, []);
+
+  useEffect(() => {
+    Animated.timing(connectorAnim, {
+      toValue: CONNECTOR_FILL_BY_STEP[step],
+      duration: 500,
+      useNativeDriver: false,
+    }).start();
+  }, [step, connectorAnim]);
 
   useEffect(() => {
     const t1 = setTimeout(() => setStep(2), 800);
@@ -79,9 +95,9 @@ export default function LoadingScreen() {
     content:     { flex: 1, alignItems: 'center', paddingTop: 36, paddingHorizontal: 28 },
 
     pulseWrap: { width: 160, height: 160, alignItems: 'center', justifyContent: 'center', marginBottom: 24 },
-    ring3: { position: 'absolute', width: 160, height: 160, borderRadius: 80, backgroundColor: 'rgba(37,99,235,0.06)' },
-    ring2: { position: 'absolute', width: 124, height: 124, borderRadius: 62, backgroundColor: 'rgba(37,99,235,0.10)' },
-    ring1: { position: 'absolute', width: 90, height: 90, borderRadius: 45, backgroundColor: 'rgba(37,99,235,0.16)' },
+    ring3: { position: 'absolute', width: 160, height: 160, borderRadius: 80, backgroundColor: withAlpha(colors.brand, 0.08) },
+    ring2: { position: 'absolute', width: 124, height: 124, borderRadius: 62, backgroundColor: withAlpha(colors.brand, 0.14) },
+    ring1: { position: 'absolute', width: 90, height: 90, borderRadius: 45, backgroundColor: withAlpha(colors.brand, 0.22) },
     center: {
       width: 64, height: 64, borderRadius: 32, backgroundColor: colors.brand,
       alignItems: 'center', justifyContent: 'center',
@@ -94,7 +110,7 @@ export default function LoadingScreen() {
 
     stepsWrap:    { width: '100%', position: 'relative' },
     connector:    { position: 'absolute', left: 17, top: 26, bottom: 40, width: 2, backgroundColor: colors.borderColor, borderRadius: 2 },
-    connectorFill:{ position: 'absolute', left: 17, top: 26, height: 90, width: 2, backgroundColor: colors.brand, borderRadius: 2 },
+    connectorFill:{ position: 'absolute', left: 17, top: 26, width: 2, backgroundColor: colors.brand, borderRadius: 2 },
     step:         { flexDirection: 'row', gap: 14, marginBottom: 20, position: 'relative' },
     dot:          { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', zIndex: 10, flexShrink: 0 },
     dotDone:      { backgroundColor: colors.safeSoft },
@@ -173,7 +189,7 @@ export default function LoadingScreen() {
 
         <View style={s.stepsWrap}>
           <View style={s.connector} />
-          <View style={s.connectorFill} />
+          <Animated.View style={[s.connectorFill, { height: connectorAnim }]} />
           {steps.map((p, i) => (
             <View key={i} style={s.step}>
               <View style={[s.dot, p.state === 'done' && s.dotDone, p.state === 'active' && s.dotActive, p.state === 'pending' && s.dotPending]}>
