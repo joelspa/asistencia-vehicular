@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
-  ArrowLeft, Info, ChevronDown, ChevronUp, RefreshCcw, MapPin, AlertTriangle, Check, MessageSquare,
+  ArrowLeft, ArrowRight, Info, ChevronDown, ChevronUp, RefreshCcw, MapPin, AlertTriangle, Check, MessageSquare,
   ShieldAlert, Clock, CheckCircle,
 } from 'lucide-react-native';
 import { RootStackParamList } from '../types/navigation';
@@ -26,7 +26,7 @@ export default function ResultScreen() {
   const { diagnostico, sintomas, perfilVehiculo } = route.params;
 
   const level = getUrgencyLevel(diagnostico.urgency_level);
-  const config = getUrgencyConfig(diagnostico.urgency_level);
+  const config = getUrgencyConfig(diagnostico.urgency_level, colors);
   const [expandedReasoning, setExpandedReasoning] = useState(false);
   const [reasoningOverflows, setReasoningOverflows] = useState(false);
 
@@ -40,6 +40,7 @@ export default function ResultScreen() {
 
   return (
     <View style={s.screen}>
+      {/* hero siempre tiene fondo saturado de urgencia → light-content seguro en ambos temas */}
       <StatusBar barStyle="light-content" backgroundColor={heroBg} />
 
       {/* Hero */}
@@ -187,8 +188,13 @@ export default function ResultScreen() {
           <View style={s.card}>
             <View style={s.cardTitleRow}>
               <SectionLabel>ESPECIALIDADES SUGERIDAS</SectionLabel>
-              <TouchableOpacity onPress={() => navigation.navigate('MainTabs', { screen: 'Mapa', params: { especialidades: diagnostico.especialidades_recomendadas } })} activeOpacity={0.7}>
-                <Text style={s.mapLink}>Ver mapa →</Text>
+              <TouchableOpacity
+                onPress={() => navigation.navigate('MainTabs', { screen: 'Mapa', params: { especialidades: diagnostico.especialidades_recomendadas } })}
+                activeOpacity={0.7}
+                style={s.mapLinkRow}
+              >
+                <Text style={s.mapLink}>Ver mapa</Text>
+                <ArrowRight color={colors.brand} size={12} strokeWidth={2.4} />
               </TouchableOpacity>
             </View>
             <View style={s.tagsWrap}>
@@ -363,6 +369,7 @@ const styles = (colors: ReturnType<typeof useColors>) => StyleSheet.create({
   actionText: { fontSize: 12.5, color: colors.warnBody, lineHeight: 20 },
 
   // Tags
+  mapLinkRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   mapLink: { fontSize: 12, fontWeight: '700', color: colors.brand },
   tagsWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 },
   tag: {

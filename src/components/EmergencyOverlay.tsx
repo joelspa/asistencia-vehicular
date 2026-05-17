@@ -3,6 +3,11 @@ import { Animated, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react
 import { AlertTriangle } from 'lucide-react-native';
 import { useColors } from '../context/ThemeContext';
 
+function withAlpha(hex: string, alpha: number): string {
+  const a = Math.round(Math.max(0, Math.min(1, alpha)) * 255).toString(16).padStart(2, '0');
+  return `${hex}${a}`;
+}
+
 interface Props {
     visible: boolean;
     countdown: number;
@@ -39,7 +44,7 @@ export function EmergencyOverlay({ visible, countdown, onCancel }: Props) {
             width: 130,
             height: 130,
             borderRadius: 65,
-            backgroundColor: 'rgba(220,38,38,0.25)',
+            backgroundColor: withAlpha(colors.critRed, 0.25),
             alignItems: 'center',
             justifyContent: 'center',
         },

@@ -1,7 +1,9 @@
 /**
- * urgency.ts - Configuración centralizada de niveles de urgencia.
- * Colores alineados con el sistema de diseño v2.
+ * urgency.ts — niveles de urgencia.
+ * Los colores se derivan del tema activo vía getUrgencyConfig(level, colors).
  */
+
+import type { AppColors } from '../theme/colors';
 
 export type UrgencyLevel = 'leve' | 'moderada' | 'critica';
 
@@ -9,47 +11,38 @@ export interface UrgencyConfig {
   level: 1 | 2 | 3;
   backgroundColor: string;
   badgeColor: string;
+  surfaceColor: string;
   label: string;
   hint: string;
   icon: string;
-  surfaceColor: string;
 }
 
-export const urgencyConfigs: Record<UrgencyLevel, UrgencyConfig> = {
-  critica: {
-    level: 3,
-    backgroundColor: '#DC2626',
-    badgeColor: '#DC2626',
-    label: 'Falla Crítica',
-    hint: 'Detenga el vehículo de inmediato',
-    icon: 'alert-triangle',
-    surfaceColor: '#FEE2E2',
-  },
-  moderada: {
-    level: 2,
-    backgroundColor: '#D97706',
-    badgeColor: '#D97706',
-    label: 'Falla Moderada',
-    hint: 'Atienda antes de 48 horas',
-    icon: 'zap',
-    surfaceColor: '#FEF3C7',
-  },
-  leve: {
-    level: 1,
-    backgroundColor: '#15803D',
-    badgeColor: '#15803D',
-    label: 'Falla Leve',
-    hint: 'Puede continuar circulando',
-    icon: 'info',
-    surfaceColor: '#DCFCE7',
-  },
+const META: Record<UrgencyLevel, Pick<UrgencyConfig, 'level' | 'label' | 'hint' | 'icon'>> = {
+  critica:  { level: 3, label: 'Falla Crítica',  hint: 'Detenga el vehículo de inmediato', icon: 'alert-triangle' },
+  moderada: { level: 2, label: 'Falla Moderada', hint: 'Atienda antes de 48 horas',         icon: 'zap'            },
+  leve:     { level: 1, label: 'Falla Leve',     hint: 'Puede continuar circulando',        icon: 'info'           },
 };
 
-export function getUrgencyConfig(level: string | UrgencyLevel): UrgencyConfig {
-  const normalized = (level?.toLowerCase() ?? 'moderada') as UrgencyLevel;
-  return urgencyConfigs[normalized] ?? urgencyConfigs.moderada;
+function normalize(level: string | UrgencyLevel | undefined | null): UrgencyLevel {
+  const v = (level ?? '').toString().toLowerCase();
+  return v === 'critica' || v === 'moderada' || v === 'leve' ? v : 'moderada';
 }
 
-export function getUrgencyLevel(level: UrgencyLevel): 1 | 2 | 3 {
-  return getUrgencyConfig(level).level;
+export function getUrgencyConfig(level: string | UrgencyLevel, colors: AppColors): UrgencyConfig {
+  const lvl = normalize(level);
+  const palette: Record<UrgencyLevel, { bg: string; surface: string }> = {
+    critica:  { bg: colors.critRed,    surface: colors.critSoft },
+    moderada: { bg: colors.warnOrange, surface: colors.warnSoft },
+    leve:     { bg: colors.safeGreen,  surface: colors.safeSoft },
+  };
+  return {
+    ...META[lvl],
+    backgroundColor: palette[lvl].bg,
+    badgeColor:      palette[lvl].bg,
+    surfaceColor:    palette[lvl].surface,
+  };
+}
+
+export function getUrgencyLevel(level: string | UrgencyLevel): 1 | 2 | 3 {
+  return META[normalize(level)].level;
 }

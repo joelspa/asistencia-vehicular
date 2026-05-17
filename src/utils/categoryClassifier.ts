@@ -15,18 +15,61 @@ export type CategoryKey =
 
 type IconComp = React.ComponentType<{ color?: string; size?: number; strokeWidth?: number }>;
 
-export const CATEGORY_CONFIG: Record<CategoryKey, { label: string; color: string; Icon: IconComp }> = {
-  general:     { label: 'Mecánica',    color: '#2563EB', Icon: Wrench      },
-  electr:      { label: 'Eléctrico',   color: '#D97706', Icon: Zap         },
-  llanta:      { label: 'Llantas',     color: '#15803D', Icon: Circle      },
-  freno:       { label: 'Frenos',      color: '#DC2626', Icon: AlertCircle },
-  pintura:     { label: 'Carrocería',  color: '#6D28D9', Icon: Package     },
-  repuesto:    { label: 'Repuestos',   color: '#EA580C', Icon: Package     },
-  grua:        { label: 'Grúa',        color: '#0E7490', Icon: Truck       },
-  moto:        { label: 'Motos',       color: '#7C3AED', Icon: Gauge       },
-  transmision: { label: 'Transmisión', color: '#B45309', Icon: Settings    },
-  suspension:  { label: 'Suspensión',  color: '#0284C7', Icon: Activity    },
+export interface CategoryEntry {
+  label: string;
+  color: string;
+  Icon: IconComp;
+}
+
+const CATEGORY_BASE: Record<CategoryKey, { label: string; Icon: IconComp }> = {
+  general:     { label: 'Mecánica',    Icon: Wrench      },
+  electr:      { label: 'Eléctrico',   Icon: Zap         },
+  llanta:      { label: 'Llantas',     Icon: Circle      },
+  freno:       { label: 'Frenos',      Icon: AlertCircle },
+  pintura:     { label: 'Carrocería',  Icon: Package     },
+  repuesto:    { label: 'Repuestos',   Icon: Package     },
+  grua:        { label: 'Grúa',        Icon: Truck       },
+  moto:        { label: 'Motos',       Icon: Gauge       },
+  transmision: { label: 'Transmisión', Icon: Settings    },
+  suspension:  { label: 'Suspensión',  Icon: Activity    },
 };
+
+// Paleta light — contraste AA sobre cardBackground light (#FFFFFF)
+const LIGHT_COLORS: Record<CategoryKey, string> = {
+  general:     '#2563EB',
+  electr:      '#D97706',
+  llanta:      '#15803D',
+  freno:       '#DC2626',
+  pintura:     '#6D28D9',
+  repuesto:    '#EA580C',
+  grua:        '#0E7490',
+  moto:        '#7C3AED',
+  transmision: '#B45309',
+  suspension:  '#0284C7',
+};
+
+// Paleta dark — variantes más luminosas, contraste AA sobre cardBackground dark (#1C2030)
+const DARK_COLORS: Record<CategoryKey, string> = {
+  general:     '#6BA3FF',
+  electr:      '#FBB040',
+  llanta:      '#4ADE80',
+  freno:       '#FC8181',
+  pintura:     '#C4B5FD',
+  repuesto:    '#FB923C',
+  grua:        '#22D3EE',
+  moto:        '#A78BFA',
+  transmision: '#FBBF24',
+  suspension:  '#38BDF8',
+};
+
+export function getCategoryConfig(isDark: boolean): Record<CategoryKey, CategoryEntry> {
+  const palette = isDark ? DARK_COLORS : LIGHT_COLORS;
+  const result = {} as Record<CategoryKey, CategoryEntry>;
+  (Object.keys(CATEGORY_BASE) as CategoryKey[]).forEach((k) => {
+    result[k] = { ...CATEGORY_BASE[k], color: palette[k] };
+  });
+  return result;
+}
 
 export function getCategoryKey(especialidad: string): CategoryKey {
   const e = (especialidad || '').toLowerCase();

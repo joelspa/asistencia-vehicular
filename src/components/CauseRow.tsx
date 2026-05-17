@@ -34,7 +34,9 @@ export default function CauseRow({ title, percentage, color }: CauseRowProps) {
       paddingRight: 8,
     },
     bar: {
-      width: 80,
+      width: '25%',
+      minWidth: 60,
+      maxWidth: 140,
       height: 4,
       backgroundColor: colors.surface2,
       borderRadius: 10,

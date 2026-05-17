@@ -11,7 +11,7 @@ import {
 } from 'lucide-react-native';
 
 import { RootStackParamList } from '../types/navigation';
-import { useColors } from '../context/ThemeContext';
+import { useTheme } from '../context/ThemeContext';
 import { spacing, borderRadius } from '../theme/colors';
 import { useVehicleProfile } from '../hooks/useVehicleProfile';
 import { ERROR_MESSAGES } from '../utils/errorMessages';
@@ -33,7 +33,7 @@ function getSaludo() {
 }
 
 export default function HomeScreen() {
-  const colors = useColors();
+  const { colors, isDark } = useTheme();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [text, setText] = useState('');
   const [inputError, setInputError] = useState('');
@@ -125,7 +125,8 @@ export default function HomeScreen() {
     },
     chipsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
     chip: {
-      width: '31%',
+      flexBasis: '31.5%',
+      flexGrow: 0,
       backgroundColor: colors.cardBackground,
       borderWidth: 1,
       borderColor: colors.borderColor,
@@ -242,7 +243,7 @@ export default function HomeScreen() {
   return (
     <SafeAreaView style={s.screen} edges={['top']}>
       <StatusBar
-        barStyle={colors.primaryText === '#0C1525' ? 'dark-content' : 'light-content'}
+        barStyle={isDark ? 'light-content' : 'dark-content'}
         backgroundColor={colors.appBackground}
       />
       <KeyboardAvoidingView
@@ -258,7 +259,7 @@ export default function HomeScreen() {
           <View style={s.headerRow}>
             <View>
               <Text style={s.saludo}>{getSaludo()}</Text>
-              <Text style={s.titulo}>¿Qué le pasa{'\n'}a tu vehículo?</Text>
+              <Text style={s.titulo}>¿Qué le pasa a tu vehículo?</Text>
             </View>
           </View>
 
@@ -299,6 +300,7 @@ export default function HomeScreen() {
               onChangeText={(v) => { setText(v); if (inputError) setInputError(''); }}
               multiline
               numberOfLines={5}
+              maxLength={500}
               selectionColor={colors.brand}
               returnKeyType="done"
               onSubmitEditing={Keyboard.dismiss}
