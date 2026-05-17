@@ -135,10 +135,10 @@ export default function SettingsScreen() {
     aboutIconWrap: { width: 28, height: 28, borderRadius: 8, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' },
     aboutValue:    { fontSize: 12.5, color: colors.primaryText, fontWeight: '600' },
 
-    disclaimer:        { backgroundColor: colors.accentSoft, borderRadius: 14, borderWidth: 1, borderColor: '#FBE5A0', padding: 14, flexDirection: 'row', gap: 10, alignItems: 'flex-start', marginTop: 4 },
+    disclaimer:        { backgroundColor: colors.accentSoft, borderRadius: 14, borderWidth: 1, borderColor: colors.warnBorder, padding: 14, flexDirection: 'row', gap: 10, alignItems: 'flex-start', marginTop: 4 },
     disclaimerContent: { flex: 1 },
-    disclaimerTitle:   { fontSize: 12.5, fontWeight: '800', color: '#78350F', marginBottom: 4 },
-    disclaimerText:    { fontSize: 11.5, color: '#92400E', lineHeight: 18 },
+    disclaimerTitle:   { fontSize: 12.5, fontWeight: '800', color: colors.warnTitle, marginBottom: 4 },
+    disclaimerText:    { fontSize: 11.5, color: colors.warnBody, lineHeight: 18 },
 
     loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
     loadingText:      { fontSize: 16, color: colors.primaryText },

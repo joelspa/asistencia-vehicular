@@ -10,7 +10,7 @@ import { talleresRouter } from './routes/talleres';
 
 const app = express();
 const PORT = 3001;
-const ACTIVE_MODEL = 'phi3';
+const ACTIVE_MODEL = 'llama3.1';
 
 app.use(cors());
 app.use(express.json());
