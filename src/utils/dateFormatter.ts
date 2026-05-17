@@ -34,21 +34,3 @@ export function formatearFechaRelativa(fechaISO: string): string {
   return `${fecha.toLocaleDateString('es')}, ${hora}`;
 }
 
-/**
- * Retorna solo la fecha en formato corto.
- * Ej: "03/05/2026"
- */
-export function formatearFechaCorta(fechaISO: string): string {
-  return new Date(fechaISO).toLocaleDateString('es');
-}
-
-/**
- * Retorna solo la hora en formato HH:MM.
- * Ej: "14:30"
- */
-export function formatearHora(fechaISO: string): string {
-  return new Date(fechaISO).toLocaleTimeString('es', {
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}

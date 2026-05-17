@@ -29,10 +29,13 @@ export function generateLeafletMapHtml(
 .leaflet-popup-content{font-family:-apple-system,sans-serif;font-size:13px;color:#0E1A2B;margin:10px 14px;}
 .leaflet-popup-tip{background:#fff;}
 @keyframes pulse{0%{transform:scale(0.5);opacity:1;}100%{transform:scale(2.5);opacity:0;}}
+.leaflet-map-pane,.leaflet-tile-pane,.leaflet-overlay-pane,.leaflet-shadow-pane,.leaflet-marker-pane,.leaflet-tooltip-pane,.leaflet-popup-pane,.leaflet-pane{overflow:visible!important;}
+.leaflet-marker-icon{will-change:transform;-webkit-transform:translateZ(0);transform:translateZ(0);}
+.leaflet-marker-icon>div{overflow:visible!important;}
 </style>
 </head><body><div id="map"></div>
 <script>
-var map=L.map('map',{zoomControl:false,touchZoom:true,tap:false,minZoom:11}).setView([${userLat},${userLng}],14);
+var map=L.map('map',{zoomControl:false,touchZoom:true,tap:false,minZoom:11,zoomAnimation:true,markerZoomAnimation:true}).setView([${userLat},${userLng}],14);
 L.tileLayer('${tileUrl}',{
   attribution:'&copy; OSM &copy; CARTO',
   subdomains:'abcd',

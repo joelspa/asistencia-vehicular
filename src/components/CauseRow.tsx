@@ -3,9 +3,9 @@
  * Muestra el nombre de la causa, una barra de probabilidad proporcional
  * y el porcentaje numerico.
  */
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { colors } from '../theme/colors';
+import { useColors } from '../context/ThemeContext';
 
 interface CauseRowProps {
   title: string;
@@ -18,6 +18,42 @@ interface CauseRowProps {
  * El color de la barra se pasa como prop para diferenciar causas.
  */
 export default function CauseRow({ title, percentage, color }: CauseRowProps) {
+  const colors = useColors();
+
+  const styles = useMemo(() => StyleSheet.create({
+    row: {
+      width: '100%',
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 8,
+    },
+    title: {
+      flex: 1,
+      fontSize: 13,
+      color: colors.secondaryText,
+      paddingRight: 8,
+    },
+    bar: {
+      width: 80,
+      height: 4,
+      backgroundColor: colors.surface2,
+      borderRadius: 10,
+      marginHorizontal: 8,
+      overflow: 'hidden',
+    },
+    barFill: {
+      height: '100%',
+      borderRadius: 10,
+    },
+    percentage: {
+      width: 36,
+      textAlign: 'right',
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.secondaryText,
+    },
+  }), [colors]);
+
   return (
     <View style={styles.row}>
       <Text style={styles.title}>{title}</Text>
@@ -28,37 +64,3 @@ export default function CauseRow({ title, percentage, color }: CauseRowProps) {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  row: {
-    width: '100%',
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 8,
-  },
-  title: {
-    flex: 1,
-    fontSize: 13,
-    color: colors.secondaryText,
-    paddingRight: 8,
-  },
-  bar: {
-    width: 80,
-    height: 4,
-    backgroundColor: colors.surface2,
-    borderRadius: 10,
-    marginHorizontal: 8,
-    overflow: 'hidden',
-  },
-  barFill: {
-    height: '100%',
-    borderRadius: 10,
-  },
-  percentage: {
-    width: 36,
-    textAlign: 'right',
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.secondaryText,
-  },
-});

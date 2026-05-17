@@ -7,7 +7,7 @@
  */
 
 import { DiagnosticoResponse } from '../types/apiTypes';
-import { API_BASE_URL, API_ENDPOINTS, API_CONFIG } from '../constants/api';
+import { getApiBaseUrl, API_ENDPOINTS, API_CONFIG } from '../constants/api';
 import { ERROR_MESSAGES } from '../utils/errorMessages';
 
 /**
@@ -25,7 +25,7 @@ export const solicitarDiagnostico = async (
   perfilVehiculo: string
 ): Promise<DiagnosticoResponse> => {
   try {
-    const url = `${API_BASE_URL}${API_ENDPOINTS.diagnosticar}`;
+    const url = `${getApiBaseUrl()}${API_ENDPOINTS.diagnosticar}`;
 
     const response = await Promise.race([
       fetch(url, {
