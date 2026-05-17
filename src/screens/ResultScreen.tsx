@@ -8,6 +8,7 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
   ArrowLeft, Info, ChevronDown, ChevronUp, RefreshCcw, MapPin, AlertTriangle, Check, MessageSquare,
+  ShieldAlert, Clock, CheckCircle,
 } from 'lucide-react-native';
 import { RootStackParamList } from '../types/navigation';
 import { colors } from '../theme/colors';
@@ -55,8 +56,11 @@ export default function ResultScreen() {
         {/* Score + título */}
         <View style={s.scoreRow}>
           <View style={[s.scoreBox, { backgroundColor: 'rgba(255,255,255,0.18)' }]}>
-            <Text style={s.scoreNum}>{level}</Text>
-            <Text style={s.scoreOf}>DE 3</Text>
+            {diagnostico.urgency_level === 'critica'
+              ? <ShieldAlert color="#fff" size={38} strokeWidth={1.8} />
+              : diagnostico.urgency_level === 'moderada'
+              ? <Clock color="#fff" size={38} strokeWidth={1.8} />
+              : <CheckCircle color="#fff" size={38} strokeWidth={1.8} />}
           </View>
           <View style={s.scoreMeta}>
             <View style={s.levelBadge}>
@@ -174,7 +178,7 @@ export default function ResultScreen() {
           <View style={s.card}>
             <View style={s.cardTitleRow}>
               <SectionLabel>ESPECIALIDADES SUGERIDAS</SectionLabel>
-              <TouchableOpacity onPress={() => navigation.navigate('MainTabs', { screen: 'Mapa' })} activeOpacity={0.7}>
+              <TouchableOpacity onPress={() => navigation.navigate('MainTabs', { screen: 'Mapa', params: { especialidades: diagnostico.especialidades_recomendadas } })} activeOpacity={0.7}>
                 <Text style={s.mapLink}>Ver mapa →</Text>
               </TouchableOpacity>
             </View>
@@ -194,7 +198,7 @@ export default function ResultScreen() {
       <View style={[s.cta, { paddingBottom: insets.bottom + 12 }]}>
         <TouchableOpacity
           style={s.ctaMain}
-          onPress={() => navigation.navigate('MainTabs', { screen: 'Mapa' })}
+          onPress={() => navigation.navigate('MainTabs', { screen: 'Mapa', params: { especialidades: diagnostico.especialidades_recomendadas } })}
           activeOpacity={0.85}
         >
           <MapPin color="#fff" size={16} strokeWidth={2.2} />

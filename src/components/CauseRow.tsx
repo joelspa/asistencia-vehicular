@@ -45,7 +45,7 @@ const styles = StyleSheet.create({
   bar: {
     width: 80,
     height: 4,
-    backgroundColor: colors.lightSurface,
+    backgroundColor: colors.surface2,
     borderRadius: 10,
     marginHorizontal: 8,
     overflow: 'hidden',

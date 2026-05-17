@@ -12,14 +12,14 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
 import * as Location from 'expo-location';
-import {
-  Navigation, MapPin, Wrench, ChevronUp,
-  Zap, Disc, StopCircle, Paintbrush, Package, Truck,
-} from 'lucide-react-native';
+import { Navigation, MapPin, ChevronUp } from 'lucide-react-native';
+import { useRoute, RouteProp } from '@react-navigation/native';
 import { useTheme } from '../context/ThemeContext';
+import { TabParamList } from '../types/navigation';
 import { mockTalleres } from '../data/mockData';
 import { generateLeafletMapHtml } from '../constants/html';
 import { getApiBaseUrl } from '../constants/api';
+import { CategoryKey, CATEGORY_CONFIG, getCategoryKey } from '../utils/categoryClassifier';
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
 const SHEET_COLLAPSED = 220;
@@ -36,33 +36,12 @@ interface TallerDisplay {
   longitud: number;
 }
 
-type CategoryKey = 'general' | 'electr' | 'llanta' | 'freno' | 'pintura' | 'repuesto' | 'grua';
-
-const CATEGORY_CONFIG: Record<CategoryKey, { label: string; Icon: typeof Wrench; color: string }> = {
-  general:  { label: 'Mecánica',  Icon: Wrench,      color: '#2563EB' },
-  electr:   { label: 'Eléctrico', Icon: Zap,         color: '#D97706' },
-  llanta:   { label: 'Llantas',   Icon: Disc,        color: '#15803D' },
-  freno:    { label: 'Frenos',    Icon: StopCircle,  color: '#DC2626' },
-  pintura:  { label: 'Pintura',   Icon: Paintbrush,  color: '#6D28D9' },
-  repuesto: { label: 'Repuestos', Icon: Package,     color: '#EA580C' },
-  grua:     { label: 'Grúa',      Icon: Truck,       color: '#0E7490' },
-};
-
-function getCategoryKey(especialidad: string): CategoryKey {
-  const e = especialidad.toLowerCase();
-  if (e.includes('electr'))                                         return 'electr';
-  if (e.includes('llanta') || e.includes('neum') || e.includes('rueda')) return 'llanta';
-  if (e.includes('freno'))                                          return 'freno';
-  if (e.includes('carrocer') || e.includes('pintur') || e.includes('chapa')) return 'pintura';
-  if (e.includes('repuesto') || e.includes('pieza') || e.includes('acceso')) return 'repuesto';
-  if (e.includes('grua') || e.includes('rescate') || e.includes('asistencia')) return 'grua';
-  return 'general';
-}
-
 export default function MapScreen() {
   const { colors, isDark } = useTheme();
   const insets = useSafeAreaInsets();
   const webViewRef = useRef<WebView>(null);
+  const route = useRoute<RouteProp<TabParamList, 'Mapa'>>();
+  const especialidadesParam = route.params?.especialidades;
 
   const [talleres, setTalleres] = useState<TallerDisplay[]>([]);
   const [loading, setLoading] = useState(true);
@@ -136,6 +115,17 @@ export default function MapScreen() {
     talleres.forEach(t => seen.add(getCategoryKey(t.especialidad)));
     return [...seen];
   }, [talleres]);
+
+  // Primera categoría del diagnóstico que tenga talleres reales; null = mostrar todos
+  const autoFilterCat = useMemo<CategoryKey | null>(() => {
+    if (!especialidadesParam?.length || !availableCategories.length) return null;
+    const available = new Set(availableCategories);
+    return especialidadesParam.map(getCategoryKey).find(cat => available.has(cat)) ?? null;
+  }, [especialidadesParam, availableCategories]);
+
+  useEffect(() => {
+    if (autoFilterCat) setActiveFilter(autoFilterCat);
+  }, [autoFilterCat]);
 
   const filteredTalleres = useMemo(() =>
     activeFilter ? talleres.filter(t => getCategoryKey(t.especialidad) === activeFilter) : talleres,
@@ -279,6 +269,16 @@ export default function MapScreen() {
             javaScriptEnabled
             domStorageEnabled
             scrollEnabled={false}
+            onLoadEnd={() => {
+              if (!especialidadesParam?.length) return;
+              const available = new Set(talleres.map(t => getCategoryKey(t.especialidad)));
+              const match = especialidadesParam.map(getCategoryKey).find(cat => available.has(cat));
+              if (match) {
+                webViewRef.current?.injectJavaScript(
+                  `if (window.filterMarkers) window.filterMarkers('${match}'); true;`
+                );
+              }
+            }}
             onMessage={(e) => {
               if (e.nativeEvent.data === 'collapse') collapseSheet();
             }}

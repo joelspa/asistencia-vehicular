@@ -42,7 +42,7 @@ L.tileLayer('${tileUrl}',{
 /* ── Registro de grupos por categoría ─────────────────────────── */
 var _groups={};
 
-/* ── Clasificador de categoría (misma lógica que TypeScript) ──── */
+/* ── Clasificador de categoría — debe mantenerse en sincronía con src/utils/categoryClassifier.ts ── */
 function getTallerCategory(esp){
   var e=(esp||'').toLowerCase();
   if(e.indexOf('electr')!==-1)return 'electr';

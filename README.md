@@ -1,4 +1,4 @@
-# MecanicaYA
+# MotorSense
 
 App de asistencia mecánica vehicular. Describís los síntomas de tu vehículo, la IA los analiza y te devuelve un diagnóstico orientativo con nivel de urgencia, causas probables y talleres cercanos.
 
