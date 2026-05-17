@@ -6,9 +6,9 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
-  Car, Fuel, AlertTriangle, ShieldCheck, Cpu, Phone, Shield, ChevronRight,
+  Car, Fuel, AlertTriangle, ShieldCheck, Cpu, Phone, Shield, ChevronRight, Sun, Moon, Monitor,
 } from 'lucide-react-native';
-import { useColors } from '../context/ThemeContext';
+import { useTheme, ThemePreference } from '../context/ThemeContext';
 import { useVehicleProfile } from '../hooks/useVehicleProfile';
 import { PerfilVehiculo } from '../services/storage';
 import { API_BASE_URL, API_ENDPOINTS } from '../constants/api';
@@ -20,8 +20,14 @@ type VehicleKey = 'marca' | 'modelo' | 'anio';
 
 const isDefined = (v: string | undefined) => v && v !== 'Sin definir';
 
+const THEME_OPTIONS: { label: string; value: ThemePreference; Icon: typeof Sun }[] = [
+  { label: 'Auto', value: 'auto', Icon: Monitor },
+  { label: 'Claro', value: 'light', Icon: Sun },
+  { label: 'Oscuro', value: 'dark', Icon: Moon },
+];
+
 export default function SettingsScreen() {
-  const colors = useColors();
+  const { colors, preference, setPreference } = useTheme();
   const { phase, activate, deactivate, contacto, saveContacto } = useModoMotoContext();
   const [editandoContacto, setEditandoContacto] = useState(false);
   const [contactoTemp, setContactoTemp] = useState('');
@@ -262,6 +268,38 @@ export default function SettingsScreen() {
                   >
                     <Text style={[s.fuelOptionText, perfilTemp.combustible === fuel && s.fuelOptionTextActive]}>
                       {fuel}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          </View>
+
+          {/* Apariencia */}
+          <View style={s.sectionLabel}>
+            <Text style={s.sectionLabelText}>APARIENCIA</Text>
+          </View>
+          <View style={s.card}>
+            <View style={s.fuelSection}>
+              <View style={s.fuelLabelRow}>
+                <Sun color={colors.tertiaryText} size={14} />
+                <Text style={s.rowLabel}>Tema</Text>
+              </View>
+              <View style={s.fuelOptions}>
+                {THEME_OPTIONS.map((opt) => (
+                  <TouchableOpacity
+                    key={opt.value}
+                    style={[s.fuelOption, preference === opt.value && s.fuelOptionActive]}
+                    onPress={() => setPreference(opt.value)}
+                    activeOpacity={0.8}
+                  >
+                    <opt.Icon
+                      color={preference === opt.value ? colors.brand : colors.tertiaryText}
+                      size={16}
+                      strokeWidth={2}
+                    />
+                    <Text style={[s.fuelOptionText, preference === opt.value && s.fuelOptionTextActive]}>
+                      {opt.label}
                     </Text>
                   </TouchableOpacity>
                 ))}

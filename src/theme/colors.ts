@@ -65,8 +65,6 @@ export const darkColors: typeof lightColors = {
 
 export type AppColors = typeof lightColors;
 
-/** Export estático para imports legacy — siempre usa la paleta clara */
-export const colors = lightColors;
 
 export const spacing = {
   xs: 4,

@@ -5,7 +5,7 @@
  */
 import React from 'react';
 import { Text, StyleSheet } from 'react-native';
-import { colors } from '../theme/colors';
+import { useColors } from '../context/ThemeContext';
 
 interface SectionLabelProps {
   children: string;
@@ -17,8 +17,9 @@ interface SectionLabelProps {
  * Acepta un color personalizado opcional para variaciones tematicas.
  */
 export default function SectionLabel({ children, color }: SectionLabelProps) {
+  const colors = useColors();
   return (
-    <Text style={[styles.label, color ? { color } : undefined]}>
+    <Text style={[styles.label, { color: color ?? colors.tertiaryText }]}>
       {children}
     </Text>
   );
@@ -30,6 +31,5 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     letterSpacing: 0.8,
     textTransform: 'uppercase',
-    color: colors.tertiaryText,
   },
 });

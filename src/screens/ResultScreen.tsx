@@ -1,5 +1,5 @@
 /** Pantalla de resultado: urgencia, causas probables, razonamiento y talleres sugeridos. */
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet, StatusBar,
 } from 'react-native';
@@ -11,7 +11,7 @@ import {
   ShieldAlert, Clock, CheckCircle,
 } from 'lucide-react-native';
 import { RootStackParamList } from '../types/navigation';
-import { colors } from '../theme/colors';
+import { useColors } from '../context/ThemeContext';
 import SectionLabel from '../components/SectionLabel';
 import CauseRow from '../components/CauseRow';
 import { getUrgencyConfig, getUrgencyLevel } from '../constants/urgency';
@@ -19,6 +19,7 @@ import { getUrgencyConfig, getUrgencyLevel } from '../constants/urgency';
 type ResultRoute = RouteProp<RootStackParamList, 'Resultado'>;
 
 export default function ResultScreen() {
+  const colors = useColors();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute<ResultRoute>();
@@ -34,6 +35,8 @@ export default function ResultScreen() {
   // Color de barras por índice de causa
   const causeBarColor = (i: number) =>
     i === 0 ? colors.warnOrange : i === 1 ? colors.tertiaryText : colors.safeGreen;
+
+  const s = useMemo(() => styles(colors), [colors]);
 
   return (
     <View style={s.screen}>
@@ -213,7 +216,7 @@ export default function ResultScreen() {
   );
 }
 
-const s = StyleSheet.create({
+const styles = (colors: ReturnType<typeof useColors>) => StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.appBackground },
 
   // Hero
@@ -374,7 +377,7 @@ const s = StyleSheet.create({
     right: 0,
     padding: 12,
     paddingBottom: 0,
-    backgroundColor: 'rgba(244,246,249,0.96)',
+    backgroundColor: colors.cardBackground + 'F5',
     borderTopWidth: 1,
     borderTopColor: colors.borderColor,
     flexDirection: 'row',

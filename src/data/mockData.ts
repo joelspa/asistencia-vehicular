@@ -145,10 +145,3 @@ export const mockDiagnosticos: Record<'leve' | 'moderada' | 'critica', Diagnosti
   },
 };
 
-export const mockHistorial = [
-  { id: '101', fecha: '2026-04-28', tipo: 'critica', titulo: 'Pérdida total de compresión' },
-  { id: '102', fecha: '2026-04-15', tipo: 'moto_alerta', titulo: 'Alerta de Caída Registrada' },
-  { id: '103', fecha: '2026-04-02', tipo: 'moderada', titulo: 'Tirones en 3ra marcha' },
-  { id: '104', fecha: '2026-03-20', tipo: 'leve', titulo: 'Ruido en la cadena' },
-  { id: '105', fecha: '2026-03-05', tipo: 'leve', titulo: 'Cambio de aceite sugerido' },
-];

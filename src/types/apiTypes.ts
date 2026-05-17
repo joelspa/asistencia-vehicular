@@ -12,10 +12,3 @@ export interface DiagnosticoResponse {
   especialidades_recomendadas: string[];
 }
 
-/** Taller devuelto por GET /talleres, antes de transformarlo a TallerDisplay. */
-export interface TallerAPI {
-  id: number;
-  nombre: string;
-  latitud: number;
-  longitud: number;
-}
