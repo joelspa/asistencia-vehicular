@@ -43,10 +43,14 @@ export default function MapScreen() {
   const route = useRoute<RouteProp<TabParamList, 'Mapa'>>();
   const especialidadesParam = route.params?.especialidades;
 
+  type TallerParaMapa = { nombre: string; latitud: number; longitud: number; especialidad?: string };
+
   const [talleres, setTalleres] = useState<TallerDisplay[]>([]);
   const [loading, setLoading] = useState(true);
   const [mapHtml, setMapHtml] = useState<string | null>(null);
   const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [rawTalleres, setRawTalleres] = useState<TallerParaMapa[]>([]);
+  const [mapCenter, setMapCenter] = useState<{ lat: number; lng: number } | null>(null);
   const [sheetExpanded, setSheetExpanded] = useState(false);
   const [activeFilter, setActiveFilter] = useState<CategoryKey | null>(null);
 
@@ -140,6 +144,11 @@ export default function MapScreen() {
 
   useEffect(() => { inicializarMapa(); }, []);
 
+  useEffect(() => {
+    if (!mapCenter) return;
+    setMapHtml(generateLeafletMapHtml(mapCenter.lat, mapCenter.lng, insets.top + 8, rawTalleres, isDark));
+  }, [isDark, mapCenter, rawTalleres]);
+
   async function inicializarMapa() {
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
@@ -151,7 +160,7 @@ export default function MapScreen() {
       }
       setUserCoords({ lat, lng });
 
-      let talleresParaMapa: { nombre: string; latitud: number; longitud: number; especialidad?: string }[] = [];
+      let talleresParaMapa: TallerParaMapa[] = [];
       try {
         const res = await fetch(`${getApiBaseUrl()}/talleres?lat=${lat}&lng=${lng}`);
         const data = await res.json();
@@ -174,7 +183,8 @@ export default function MapScreen() {
           especialidad: t.especialidad, latitud: t.coordenadas.lat, longitud: t.coordenadas.lng,
         })));
       }
-      setMapHtml(generateLeafletMapHtml(lat, lng, insets.top + 8, talleresParaMapa, isDark));
+      setRawTalleres(talleresParaMapa);
+      setMapCenter({ lat, lng });
     } catch (e) {
       console.error('Error al inicializar mapa:', e);
     } finally {

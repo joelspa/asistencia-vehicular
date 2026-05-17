@@ -1,8 +1,8 @@
 /** Pantalla de perfil del vehículo y configuración de la app. */
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
-  View, Text, ScrollView, TouchableOpacity, TextInput, StyleSheet, Alert,
-  KeyboardAvoidingView, Platform,
+  View, Text, ScrollView, TouchableOpacity, TextInput, StyleSheet,
+  KeyboardAvoidingView, Platform, ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
@@ -27,7 +27,9 @@ export default function SettingsScreen() {
   const [contactoTemp, setContactoTemp] = useState('');
   const [editingField, setEditingField] = useState<VehicleKey | null>(null);
   const [perfilTemp, setPerfilTemp] = useState<PerfilVehiculo | null>(null);
-  const [aiModel, setAiModel] = useState('Ollama · local');
+  type AiStatus = 'loading' | 'connected' | 'disconnected';
+  const [aiStatus, setAiStatus] = useState<AiStatus>('loading');
+  const [aiModel, setAiModel] = useState('');
 
   const { perfil, updateProfile, loading } = useVehicleProfile();
   const perfilRef = useRef<PerfilVehiculo | null>(null);
@@ -39,8 +41,8 @@ export default function SettingsScreen() {
   useEffect(() => {
     fetch(`${API_BASE_URL}${API_ENDPOINTS.config}`)
       .then(res => res.json())
-      .then(data => setAiModel(`Ollama · ${data.model}`))
-      .catch(() => setAiModel('Ollama · local'));
+      .then(data => { setAiModel(data.model ?? 'phi3'); setAiStatus('connected'); })
+      .catch(() => setAiStatus('disconnected'));
   }, []);
 
   const setField = useCallback((key: VehicleKey, value: string) => {
@@ -272,23 +274,45 @@ export default function SettingsScreen() {
             <Text style={s.sectionLabelText}>APLICACIÓN</Text>
           </View>
           <View style={s.card}>
-            {[
-              { label: 'Motor de IA',      value: aiModel,                    Icon: Cpu        },
-              { label: 'Almacenamiento',   value: 'Solo en tu dispositivo',   Icon: ShieldCheck },
-            ].map((item, i, arr) => {
-              const Icon = item.Icon;
-              return (
-                <View key={i} style={[s.aboutRow, i < arr.length - 1 && s.rowBorder]}>
-                  <View style={s.aboutLabelRow}>
-                    <View style={s.aboutIconWrap}>
-                      <Icon color={colors.brand} size={14} strokeWidth={2} />
-                    </View>
-                    <Text style={s.rowLabel}>{item.label}</Text>
-                  </View>
-                  <Text style={s.aboutValue}>{item.value}</Text>
+            {/* Motor de IA — 3 estados */}
+            <View style={[s.aboutRow, s.rowBorder]}>
+              <View style={s.aboutLabelRow}>
+                <View style={s.aboutIconWrap}>
+                  <Cpu color={colors.brand} size={14} strokeWidth={2} />
                 </View>
-              );
-            })}
+                <Text style={s.rowLabel}>Motor de IA</Text>
+              </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                {aiStatus === 'loading' && (
+                  <>
+                    <ActivityIndicator size="small" color={colors.tertiaryText} />
+                    <Text style={s.aboutValue}>Comprobando...</Text>
+                  </>
+                )}
+                {aiStatus === 'connected' && (
+                  <>
+                    <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: colors.safeGreen }} />
+                    <Text style={[s.aboutValue, { color: colors.safeGreen }]}>Ollama · {aiModel}</Text>
+                  </>
+                )}
+                {aiStatus === 'disconnected' && (
+                  <>
+                    <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: colors.critRed }} />
+                    <Text style={[s.aboutValue, { color: colors.critRed }]}>Sin conexión</Text>
+                  </>
+                )}
+              </View>
+            </View>
+            {/* Almacenamiento */}
+            <View style={s.aboutRow}>
+              <View style={s.aboutLabelRow}>
+                <View style={s.aboutIconWrap}>
+                  <ShieldCheck color={colors.brand} size={14} strokeWidth={2} />
+                </View>
+                <Text style={s.rowLabel}>Almacenamiento</Text>
+              </View>
+              <Text style={s.aboutValue}>Solo en tu dispositivo</Text>
+            </View>
           </View>
 
           {/* Modo Moto */}
