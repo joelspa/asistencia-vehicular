@@ -5,9 +5,7 @@ export function generateLeafletMapHtml(
     talleres: Array<{ nombre: string; latitud: number; longitud: number; especialidad?: string }>,
     isDark = false
 ): string {
-    const tileUrl = isDark
-        ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png'
-        : 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png';
+    const tileUrl = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
 
     // Cada marcador se crea Y se registra en _groups por categoría
     const markers = talleres.map((t, i) => {
@@ -23,23 +21,22 @@ export function generateLeafletMapHtml(
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"><\/script>
 <style>
 *{margin:0;padding:0;}
-#map{width:100%;height:100vh;}
+html,body,#map{width:100%;height:100%;}
+#map{position:absolute;top:0;left:0;right:0;bottom:0;}
 .leaflet-top{top:${topPadding}px!important;}
 .leaflet-popup-content-wrapper{border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,0.18);border:none;}
 .leaflet-popup-content{font-family:-apple-system,sans-serif;font-size:13px;color:#0E1A2B;margin:10px 14px;}
 .leaflet-popup-tip{background:#fff;}
-@keyframes pulse{0%{transform:scale(0.5);opacity:1;}100%{transform:scale(2.5);opacity:0;}}
-.leaflet-map-pane,.leaflet-tile-pane,.leaflet-overlay-pane,.leaflet-shadow-pane,.leaflet-marker-pane,.leaflet-tooltip-pane,.leaflet-popup-pane,.leaflet-pane{overflow:visible!important;}
-.leaflet-marker-icon{will-change:transform;-webkit-transform:translateZ(0);transform:translateZ(0);}
-.leaflet-marker-icon>div{overflow:visible!important;}
+.leaflet-marker-icon{overflow:visible;}
+.leaflet-marker-pane{transform:translate3d(0,0,0);-webkit-transform:translate3d(0,0,0);will-change:transform;}
 </style>
 </head><body><div id="map"></div>
 <script>
-var map=L.map('map',{zoomControl:false,touchZoom:true,tap:false,minZoom:11,zoomAnimation:true,markerZoomAnimation:true}).setView([${userLat},${userLng}],14);
+var map=L.map('map',{zoomControl:false,touchZoom:true,tap:false,minZoom:11,zoomAnimation:true,markerZoomAnimation:false,fadeAnimation:false}).setView([${userLat},${userLng}],14);
 L.tileLayer('${tileUrl}',{
-  attribution:'&copy; OSM &copy; CARTO',
-  subdomains:'abcd',
-  maxZoom:19
+  attribution:'&copy; OpenStreetMap',
+  maxZoom:19,
+  keepBuffer:4
 }).addTo(map);
 
 /* ── Registro de grupos por categoría ─────────────────────────── */
@@ -104,12 +101,12 @@ function getTallerIcon(esp){
   return L.divIcon({html:h,className:'',iconSize:[38,50],iconAnchor:[19,50]});
 }
 
-/* ── Marcador de usuario ──────────────────────────────────────── */
+/* ── Marcador de usuario (estático, sin animación) ─────────────── */
 var userIcon=L.divIcon({
-  html:'<div style="position:relative;width:20px;height:20px;"><div style="position:absolute;width:20px;height:20px;border-radius:50%;background:rgba(37,99,235,0.25);animation:pulse 2s ease-out infinite;"><\/div><div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:12px;height:12px;border-radius:50%;background:#2563EB;border:2px solid #FFF;box-shadow:0 0 0 3px rgba(37,99,235,0.2);"><\/div><\/div>',
-  className:'',iconSize:[20,20],iconAnchor:[10,10]
+  html:'<div style="width:14px;height:14px;border-radius:50%;background:#2563EB;border:2px solid #FFF;"></div>',
+  className:'',iconSize:[14,14],iconAnchor:[7,7]
 });
-L.marker([${userLat},${userLng}],{icon:userIcon}).addTo(map).bindPopup('<b>Tu ubicacion</b>');
+L.marker([${userLat},${userLng}],{icon:userIcon}).addTo(map);
 
 /* ── Marcadores de talleres (generados por TypeScript) ────────── */
 ${markers}
@@ -124,6 +121,18 @@ window.filterMarkers=function(cat){
     });
   });
 };
+
+/* ── Fix: forzar recálculo de posiciones después de cada gesto ── */
+function forceRefresh(){
+  try{
+    map.invalidateSize(false);
+    map.eachLayer(function(layer){
+      if(layer instanceof L.Marker && layer.update) layer.update();
+    });
+  }catch(e){}
+}
+map.on('zoomend',forceRefresh);
+map.on('moveend',forceRefresh);
 
 /* ── Colapsar panel al tocar el mapa ─────────────────────────── */
 map.on('click',function(){
