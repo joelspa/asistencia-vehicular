@@ -18,7 +18,7 @@ export function generateLeafletMapHtml(
 
     return `<!DOCTYPE html>
 <html><head>
-<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"><\/script>
 <style>
@@ -32,7 +32,7 @@ export function generateLeafletMapHtml(
 </style>
 </head><body><div id="map"></div>
 <script>
-var map=L.map('map',{zoomControl:true}).setView([${userLat},${userLng}],14);
+var map=L.map('map',{zoomControl:false,touchZoom:true,tap:false}).setView([${userLat},${userLng}],14);
 L.tileLayer('${tileUrl}',{
   attribution:'&copy; OSM &copy; CARTO',
   subdomains:'abcd',
