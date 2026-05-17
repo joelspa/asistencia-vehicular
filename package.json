@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "index.ts",
   "scripts": {
-    "dev": "concurrently -n server,expo -c blue,green \"npm run dev --prefix server\" \"expo start\"",
+    "dev": "concurrently -n server,expo -c blue,green \"npm run dev --prefix server\" \"expo start --host 192.168.0.5\"",
     "start": "expo start",
     "android": "expo run:android",
     "ios": "expo run:ios",
