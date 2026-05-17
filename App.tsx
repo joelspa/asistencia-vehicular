@@ -1,5 +1,5 @@
 /**
- * App.tsx - Componente raiz de MecanicaYA.
+ * App.tsx - Componente raiz de MotorSense.
  * Navegación: tab bar inferior con 4 pestanas + pila para pantallas modales.
  */
 import React from 'react';
