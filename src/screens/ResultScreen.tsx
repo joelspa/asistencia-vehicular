@@ -132,14 +132,20 @@ export default function ResultScreen() {
             </View>
             <Text style={s.reasonTitle}>Por qué este resultado</Text>
           </View>
+          {/* Hidden text to measure real line count (numberOfLines truncates before onTextLayout) */}
           <Text
-            style={s.reasonText}
-            numberOfLines={expandedReasoning ? undefined : 4}
+            style={[s.reasonText, s.hiddenMeasure]}
             onTextLayout={(e) => {
               if (!reasoningOverflows && e.nativeEvent.lines.length > 4) {
                 setReasoningOverflows(true);
               }
             }}
+          >
+            {diagnostico.razonamiento}
+          </Text>
+          <Text
+            style={s.reasonText}
+            numberOfLines={expandedReasoning ? undefined : 4}
           >
             {diagnostico.razonamiento}
           </Text>
@@ -150,7 +156,7 @@ export default function ResultScreen() {
               activeOpacity={0.7}
             >
               <Text style={s.expandText}>
-                {expandedReasoning ? 'Ver menos' : 'Ver razonamiento completo'}
+                {expandedReasoning ? 'Ver menos' : 'Ver más...'}
               </Text>
               {expandedReasoning
                 ? <ChevronUp color={colors.brand} size={14} />
@@ -318,6 +324,7 @@ const styles = (colors: ReturnType<typeof useColors>) => StyleSheet.create({
   },
   reasonTitle: { fontSize: 14.5, fontWeight: '800', color: colors.primaryText },
   reasonText: { fontSize: 13.5, color: colors.secondaryText, lineHeight: 22 },
+  hiddenMeasure: { position: 'absolute', opacity: 0, zIndex: -1, alignSelf: 'stretch' },
   expandBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -333,7 +340,7 @@ const styles = (colors: ReturnType<typeof useColors>) => StyleSheet.create({
     borderRadius: 18,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#FBE5A0',
+    borderColor: colors.warnBorder,
     flexDirection: 'row',
     gap: 12,
   },
@@ -352,8 +359,8 @@ const styles = (colors: ReturnType<typeof useColors>) => StyleSheet.create({
     elevation: 3,
   },
   actionContent: { flex: 1 },
-  actionTitle: { fontSize: 14, fontWeight: '800', color: '#78350F', marginBottom: 4 },
-  actionText: { fontSize: 12.5, color: '#92400E', lineHeight: 20 },
+  actionTitle: { fontSize: 14, fontWeight: '800', color: colors.warnTitle, marginBottom: 4 },
+  actionText: { fontSize: 12.5, color: colors.warnBody, lineHeight: 20 },
 
   // Tags
   mapLink: { fontSize: 12, fontWeight: '700', color: colors.brand },

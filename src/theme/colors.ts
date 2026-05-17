@@ -31,25 +31,30 @@ export const lightColors = {
   warnSoft: '#FEF3C7',
   critSoft: '#FEE2E2',
   purpleSurface: '#F3F0FF',
+
+  warnTitle: '#78350F',
+  warnBody: '#92400E',
+  warnBorder: '#FBE5A0',
 };
 
 export const darkColors: typeof lightColors = {
-  brand: '#5C96F7',
-  brandDeep: '#3D80F0',
-  brandSoft: '#172244',
+  brand: '#6BA3FF',          // más luminoso, mejor legibilidad
+  brandDeep: '#4D8CF5',      // más claro para destacar links
+  brandSoft: '#1A2744',      // ligeramente más claro
+
   accent: '#FBB040',
-  accentSoft: '#2C1B06',
+  accentSoft: '#332008',     // más saturado
 
-  appBackground: '#131720',
-  cardBackground: '#1D2136',
-  surface2: '#262D42',
+  appBackground: '#0E1117',  // más oscuro para separar de cards
+  cardBackground: '#1C2030',
+  surface2: '#2D3550',       // +8% luminosidad, separadores visibles
 
-  primaryText: '#E8EDF6',    // ~14:1 sobre card ✓✓
-  secondaryText: '#98A6BE',  // ~6.5:1 ✓✓
-  tertiaryText: '#7A8BA3',   // ~4.2:1 ✓
+  primaryText: '#EAEFF8',    // ~14:1 sobre card ✓✓
+  secondaryText: '#9FAFC8',  // ~7:1 ✓✓
+  tertiaryText: '#7E90AB',   // ~4.5:1 ✓
 
-  borderColor: '#28324E',
-  navy: '#1D2136',
+  borderColor: '#323D5A',    // +12% luminosidad, bordes perceptibles
+  navy: '#2A3352',           // separado de cardBackground → CTA visible
 
   safeGreen: '#4ADE80',      // ~9:1 sobre bg ✓✓
   warnOrange: '#FBB040',
@@ -57,10 +62,14 @@ export const darkColors: typeof lightColors = {
   motoPurple: '#A78BFA',
   accidentBackground: '#1A0505',
 
-  safeSoft: '#0E2418',
-  warnSoft: '#2A1808',
-  critSoft: '#280E0E',
-  purpleSurface: '#1C1440',
+  safeSoft: '#0F2D1B',       // más verde visible
+  warnSoft: '#33200A',       // más ámbar visible
+  critSoft: '#331212',       // más rojo visible
+  purpleSurface: '#1E1648',  // ligeramente más saturado
+
+  warnTitle: '#FBD38D',      // ámbar claro legible sobre warnSoft
+  warnBody: '#F6AD55',       // ámbar medio
+  warnBorder: '#5C3D10',     // borde sutil pero visible
 };
 
 export type AppColors = typeof lightColors;
