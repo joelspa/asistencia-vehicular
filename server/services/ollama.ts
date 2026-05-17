@@ -69,19 +69,28 @@ RESTRICCIONES ABSOLUTAS:
   "Lavado" → olores internos, suciedad, problemas estéticos sin falla mecánica
 - Idioma: español rioplatense`;
 
-  const response = await fetch(OLLAMA_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model,
-      messages: [
-        { role: 'system', content: promptSystem },
-        { role: 'user', content: `Síntomas del vehículo: ${sintomas}` },
-      ],
-      format: 'json',
-      stream: false,
-    }),
-  });
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 80_000);
+
+  let response: Response;
+  try {
+    response = await fetch(OLLAMA_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      signal: controller.signal,
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: 'system', content: promptSystem },
+          { role: 'user', content: `Síntomas del vehículo: ${sintomas}` },
+        ],
+        format: 'json',
+        stream: false,
+      }),
+    });
+  } finally {
+    clearTimeout(timer);
+  }
 
   const data = await response.json();
   const raw = JSON.parse(data.message.content);

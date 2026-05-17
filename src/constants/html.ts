@@ -32,7 +32,7 @@ export function generateLeafletMapHtml(
 </style>
 </head><body><div id="map"></div>
 <script>
-var map=L.map('map',{zoomControl:false,touchZoom:true,tap:false}).setView([${userLat},${userLng}],14);
+var map=L.map('map',{zoomControl:false,touchZoom:true,tap:false,minZoom:11}).setView([${userLat},${userLng}],14);
 L.tileLayer('${tileUrl}',{
   attribution:'&copy; OSM &copy; CARTO',
   subdomains:'abcd',
@@ -50,7 +50,10 @@ function getTallerCategory(esp){
   if(e.indexOf('freno')!==-1)return 'freno';
   if(e.indexOf('carrocer')!==-1||e.indexOf('pintur')!==-1||e.indexOf('chapa')!==-1)return 'pintura';
   if(e.indexOf('repuesto')!==-1||e.indexOf('pieza')!==-1||e.indexOf('acceso')!==-1||e.indexOf('autopart')!==-1)return 'repuesto';
-  if(e.indexOf('grua')!==-1||e.indexOf('rescate')!==-1||e.indexOf('asistencia')!==-1)return 'grua';
+  if(e.indexOf('moto')!==-1||e.indexOf('motocicleta')!==-1)return 'moto';
+  if(e.indexOf('transmisi')!==-1||e.indexOf('caja de cambio')!==-1||e.indexOf('diferencial')!==-1)return 'transmision';
+  if(e.indexOf('suspension')!==-1||e.indexOf('amortiguador')!==-1||e.indexOf('direccion')!==-1)return 'suspension';
+  if(e.indexOf('grua')!==-1||e.indexOf('grúa')!==-1||e.indexOf('rescate')!==-1||e.indexOf('asistencia')!==-1)return 'grua';
   return 'general';
 }
 
@@ -76,6 +79,15 @@ function getTallerIcon(esp){
   }else if(e.indexOf('grua')!==-1||e.indexOf('rescate')!==-1||e.indexOf('asistencia')!==-1){
     color='#0E7490';
     svgPath='<rect x="1" y="3" width="15" height="13" stroke="white" stroke-width="2" fill="none" rx="1"/><path d="M16 8l4 0 2 5-6 0" stroke="white" stroke-width="2" fill="none"/><circle cx="5.5" cy="18.5" r="2.5" stroke="white" stroke-width="2" fill="none"/><circle cx="18.5" cy="18.5" r="2.5" stroke="white" stroke-width="2" fill="none"/>';
+  }else if(e.indexOf('moto')!==-1||e.indexOf('motocicleta')!==-1){
+    color='#7C3AED';
+    svgPath='<circle cx="5" cy="17" r="3" stroke="white" stroke-width="2" fill="none"/><circle cx="19" cy="17" r="3" stroke="white" stroke-width="2" fill="none"/><path d="M5 17h4l2-6h6l2 4h-4" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M13 11l1-4h3" stroke="white" stroke-width="2" fill="none" stroke-linecap="round"/>';
+  }else if(e.indexOf('transmisi')!==-1||e.indexOf('caja de cambio')!==-1||e.indexOf('diferencial')!==-1){
+    color='#B45309';
+    svgPath='<circle cx="12" cy="12" r="3" stroke="white" stroke-width="2" fill="none"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14" stroke="white" stroke-width="2" fill="none" stroke-linecap="round"/><path d="M4.93 4.93a10 10 0 0 0 0 14.14" stroke="white" stroke-width="2" fill="none" stroke-linecap="round"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2" stroke="white" stroke-width="2" stroke-linecap="round"/>';
+  }else if(e.indexOf('suspension')!==-1||e.indexOf('amortiguador')!==-1||e.indexOf('direccion')!==-1){
+    color='#0284C7';
+    svgPath='<path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" stroke="white" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="12" r="4" stroke="white" stroke-width="2" fill="none"/>';
   }else{
     svgPath='<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" stroke="white" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>';
   }
