@@ -15,8 +15,18 @@ const BACKEND_PORT = 3001;
  * Todas las variantes tienen formato "192.168.x.x:PORT".
  * Se extrae solo la IP y se reemplaza el puerto por el del backend.
  */
+/**
+ * Forma de `Constants` que nos interesa, declarada localmente para no depender
+ * de los tipos cambiantes de `expo-constants` entre SDKs.
+ */
+interface ExpoConstantsShape {
+  expoGoConfig?: { debuggerHost?: string };
+  expoConfig?: { hostUri?: string; extra?: { apiBaseUrl?: string } };
+  manifest?: { hostUri?: string; debuggerHost?: string; extra?: { apiBaseUrl?: string } };
+}
+
 function resolveDevBaseUrl(): string {
-  const c = Constants as any;
+  const c = Constants as unknown as ExpoConstantsShape;
 
   const hostUri: string | undefined =
     c.expoGoConfig?.debuggerHost ||  // SDK 50+ con Expo Go (SDK 55 usa esto)
@@ -40,7 +50,7 @@ function resolveDevBaseUrl(): string {
  * cae a un placeholder que rompe el request — preferible al silencio.
  */
 function resolveProdBaseUrl(): string {
-  const c = Constants as any;
+  const c = Constants as unknown as ExpoConstantsShape;
   const url: string | undefined =
     c.expoConfig?.extra?.apiBaseUrl || c.manifest?.extra?.apiBaseUrl;
 

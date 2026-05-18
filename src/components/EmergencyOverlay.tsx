@@ -2,11 +2,7 @@ import React, { useEffect, useRef, useMemo } from 'react';
 import { Animated, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { AlertTriangle } from 'lucide-react-native';
 import { useColors } from '../context/ThemeContext';
-
-function withAlpha(hex: string, alpha: number): string {
-  const a = Math.round(Math.max(0, Math.min(1, alpha)) * 255).toString(16).padStart(2, '0');
-  return `${hex}${a}`;
-}
+import { withAlpha } from '../theme/utils';
 
 interface Props {
     visible: boolean;

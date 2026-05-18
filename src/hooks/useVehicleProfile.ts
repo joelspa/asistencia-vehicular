@@ -13,6 +13,8 @@ import {
     obtenerPerfilVehiculo,
     guardarPerfilVehiculo,
     PerfilVehiculo,
+    UNDEFINED_FIELD,
+    UNDEFINED_VEHICLE_LABEL,
 } from '../services/storage';
 
 /**
@@ -61,8 +63,8 @@ export function useVehicleProfile() {
      * Ej: "Toyota Corolla 2019"
      */
     const perfilLabel = useCallback((): string => {
-        if (!perfil || perfil.marca === 'Sin definir') {
-            return 'No especificado';
+        if (!perfil || perfil.marca === UNDEFINED_FIELD) {
+            return UNDEFINED_VEHICLE_LABEL;
         }
         return `${perfil.marca} ${perfil.modelo} ${perfil.anio}`.trim();
     }, [perfil]);

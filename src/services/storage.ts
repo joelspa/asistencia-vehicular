@@ -34,13 +34,19 @@ export interface PerfilVehiculo {
   combustible: string;
 }
 
+/** Valor sentinela usado en cada campo del perfil cuando el usuario no completó. */
+export const UNDEFINED_FIELD = 'Sin definir';
+
+/** Label visible al usuario cuando el perfil entero está sin definir. */
+export const UNDEFINED_VEHICLE_LABEL = 'No especificado';
+
 /**
  * Perfil de vehiculo por defecto cuando no hay datos guardados.
  */
 const PERFIL_DEFAULT: PerfilVehiculo = {
-  marca: 'Sin definir',
-  modelo: 'Sin definir',
-  anio: 'Sin definir',
+  marca: UNDEFINED_FIELD,
+  modelo: UNDEFINED_FIELD,
+  anio: UNDEFINED_FIELD,
   combustible: 'Gasolina',
 };
 

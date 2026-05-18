@@ -11,15 +11,16 @@ import {
 import { useTheme, ThemePreference } from '../context/ThemeContext';
 import { SegmentedControl } from '../components/SegmentedControl';
 import { useVehicleProfile } from '../hooks/useVehicleProfile';
-import { PerfilVehiculo } from '../services/storage';
+import { PerfilVehiculo, UNDEFINED_FIELD } from '../services/storage';
 import { API_BASE_URL, API_ENDPOINTS } from '../constants/api';
+import { fetchWithTimeout } from '../services/http';
 import { useModoMotoContext } from '../context/ModoMotoContext';
 
 const FUEL_OPTIONS = ['Gasolina', 'Diesel', 'Gas'];
 
 type VehicleKey = 'marca' | 'modelo' | 'anio';
 
-const isDefined = (v: string | undefined) => v && v !== 'Sin definir';
+const isDefined = (v: string | undefined) => v && v !== UNDEFINED_FIELD;
 
 const THEME_OPTIONS: { label: string; value: ThemePreference; Icon: typeof Sun }[] = [
   { label: 'Auto', value: 'auto', Icon: Monitor },
@@ -46,7 +47,7 @@ export default function SettingsScreen() {
   }, [perfil]);
 
   useEffect(() => {
-    fetch(`${API_BASE_URL}${API_ENDPOINTS.config}`)
+    fetchWithTimeout(`${API_BASE_URL}${API_ENDPOINTS.config}`, undefined, 5000)
       .then(res => res.json())
       .then(data => { setAiModel(data.model ?? 'phi3'); setAiStatus('connected'); })
       .catch(() => setAiStatus('disconnected'));

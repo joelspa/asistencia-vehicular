@@ -14,6 +14,7 @@ import * as Location from 'expo-location';
 import { getApiBaseUrl, API_ENDPOINTS } from '../constants/api';
 import { mockTalleres } from '../data/mockData';
 import { TallerBackend, TalleresResponse } from '../types/apiTypes';
+import { fetchWithTimeout } from '../services/http';
 
 const FALLBACK_COORDS = { lat: -17.7863, lng: -63.1812 }; // Santa Cruz, Bolivia
 const MAX_TALLERES_MAPA = 15;
@@ -89,7 +90,9 @@ export function useTalleresNearby() {
                 let talleres: TallerDisplay[];
 
                 try {
-                    const res = await fetch(`${getApiBaseUrl()}${API_ENDPOINTS.talleres}?lat=${lat}&lng=${lng}`);
+                    const res = await fetchWithTimeout(
+                        `${getApiBaseUrl()}${API_ENDPOINTS.talleres}?lat=${lat}&lng=${lng}`
+                    );
                     const data: TalleresResponse = await res.json();
                     if (!data.talleres?.length) throw new Error('empty');
                     rawTalleres = data.talleres.map(toRaw);

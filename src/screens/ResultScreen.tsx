@@ -15,6 +15,7 @@ import SectionLabel from '../components/SectionLabel';
 import CauseRow from '../components/CauseRow';
 import { HeroUrgency } from '../components/HeroUrgency';
 import { getUrgencyConfig, getUrgencyLevel } from '../constants/urgency';
+import { UNDEFINED_VEHICLE_LABEL } from '../services/storage';
 
 type ResultRoute = RouteProp<RootStackParamList, 'Resultado'>;
 
@@ -66,7 +67,7 @@ export default function ResultScreen() {
             </View>
             <View style={s.queryContent}>
               <Text style={s.queryLabel}>LO QUE CONSULTASTE</Text>
-              {perfilVehiculo === 'No especificado' ? (
+              {perfilVehiculo === UNDEFINED_VEHICLE_LABEL ? (
                 <TouchableOpacity
                   style={s.addVehicleCta}
                   onPress={() => navigation.navigate('MainTabs', { screen: 'Configuracion' })}
