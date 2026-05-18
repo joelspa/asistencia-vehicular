@@ -8,7 +8,7 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
   ArrowLeft, ArrowRight, Info, ChevronDown, ChevronUp, RefreshCcw, MapPin, AlertTriangle, Check, MessageSquare,
-  ShieldAlert, Clock, CheckCircle,
+  ShieldAlert, Clock, CheckCircle, Plus,
 } from 'lucide-react-native';
 import { RootStackParamList } from '../types/navigation';
 import { useColors } from '../context/ThemeContext';
@@ -104,7 +104,18 @@ export default function ResultScreen() {
             </View>
             <View style={s.queryContent}>
               <Text style={s.queryLabel}>LO QUE CONSULTASTE</Text>
-              {perfilVehiculo ? <Text style={s.queryVehicle}>{perfilVehiculo}</Text> : null}
+              {perfilVehiculo === 'No especificado' ? (
+                <TouchableOpacity
+                  style={s.addVehicleCta}
+                  onPress={() => navigation.navigate('MainTabs', { screen: 'Configuracion' })}
+                  activeOpacity={0.7}
+                >
+                  <Plus color={colors.brandDeep} size={12} strokeWidth={2.6} />
+                  <Text style={s.addVehicleText}>Agregar vehículo</Text>
+                </TouchableOpacity>
+              ) : perfilVehiculo ? (
+                <Text style={s.queryVehicle}>{perfilVehiculo}</Text>
+              ) : null}
               {sintomas ? <Text style={s.queryText}>{sintomas}</Text> : null}
             </View>
           </View>
@@ -459,6 +470,22 @@ const styles = (colors: ReturnType<typeof useColors>) => StyleSheet.create({
     fontWeight: '700',
     color: colors.secondaryText,
     marginBottom: 4,
+  },
+  addVehicleCta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    alignSelf: 'flex-start',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+    backgroundColor: colors.brandSoft,
+    marginBottom: 6,
+  },
+  addVehicleText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: colors.brandDeep,
   },
   queryText: {
     fontSize: 13,
