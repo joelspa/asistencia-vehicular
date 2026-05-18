@@ -1,11 +1,11 @@
 # MotorSense
 
-App de asistencia mecánica vehicular. Describís los síntomas de tu vehículo, la IA los analiza y te devuelve un diagnóstico orientativo con nivel de urgencia, causas probables y talleres cercanos.
+Aplicación de asistencia mecánica vehicular. El usuario describe los síntomas de su vehículo, la IA los analiza y devuelve un diagnóstico orientativo con nivel de urgencia, causas probables y talleres cercanos.
 
 ## Requisitos previos
 
 - [Node.js](https://nodejs.org/) 18+
-- [Expo Go](https://expo.dev/go) instalado en tu celular
+- [Expo Go](https://expo.dev/go) instalado en el teléfono
 - [Ollama](https://ollama.com/) corriendo localmente con el modelo `phi3`
 
 ```bash
@@ -25,27 +25,13 @@ npm install --prefix server
 
 ## Configuración
 
-Creá el archivo `server/.env`:
+Crear el archivo `server/.env`:
 
 ```env
 PORT=3001
 ```
 
-En **desarrollo** no hace falta hardcodear la IP: la app detecta automáticamente el host del Metro de Expo. Solo asegurate de que el celular y la PC estén en la misma red WiFi.
-
-Para **builds de producción**, definí la URL del backend en `app.json` → `expo.extra.apiBaseUrl`:
-
-```json
-{
-  "expo": {
-    "extra": {
-      "apiBaseUrl": "https://tu-backend.com"
-    }
-  }
-}
-```
-
-Si queda vacía, la app loguea un warning y los requests fallan a propósito.
+No es necesario configurar la IP del host: la aplicación detecta automáticamente el host del Metro de Expo. Solo se debe verificar que el teléfono y la computadora estén en la misma red WiFi.
 
 ## Ejecutar
 
@@ -53,7 +39,7 @@ Si queda vacía, la app loguea un warning y los requests fallan a propósito.
 npm run dev
 ```
 
-Escaneá el QR con Expo Go desde tu celular.
+Escanear el QR con Expo Go desde el teléfono.
 
 ## Estructura
 
@@ -80,7 +66,7 @@ server/
 - **Historial** — diagnósticos guardados localmente, filtrables por urgencia.
 - **Perfil del vehículo** — marca, modelo, año y combustible para diagnósticos más precisos. Si está vacío, el resultado muestra un CTA "Agregar vehículo" que lleva directo a Configuración.
 - **Modo claro/oscuro** — sigue al sistema o se fija manualmente desde Configuración. Paletas calibradas para WCAG AA en ambos temas.
-- **Modo Moto** — detección de accidentes por sensores con alerta de emergencia por WhatsApp (countdown cancelable). Configurable vía `src/constants/sensors.ts`:
+- **Modo Moto** — detección de accidentes por sensores con alerta de emergencia por WhatsApp (cuenta regresiva cancelable). Configurable mediante `src/constants/sensors.ts`:
   - `MODO_GYRO_HABILITADO = false` → solo acelerómetro, umbral bajo (testing/QA).
   - `MODO_GYRO_HABILITADO = true` → acelerómetro + giroscopio con doble condición (producción).
 
