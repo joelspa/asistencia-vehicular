@@ -12,3 +12,21 @@ export interface DiagnosticoResponse {
   especialidades_recomendadas: string[];
 }
 
+/** Taller individual tal como lo retorna el endpoint GET /talleres. */
+export interface TallerBackend {
+  id: string | number;
+  nombre: string;
+  latitud: number;
+  longitud: number;
+  /** Texto formateado opcional (ej: "1.2 km"). Si no viene, se usa `distanciaKm`. */
+  distancia?: string;
+  distanciaKm?: number;
+  /** Especialidad libre (ej: "Frenos", "Mecánica general"). Si no viene, se cae a "General". */
+  especialidad?: string;
+}
+
+/** Respuesta de GET /talleres?lat=X&lng=Y. */
+export interface TalleresResponse {
+  talleres: TallerBackend[];
+}
+

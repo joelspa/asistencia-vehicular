@@ -1,5 +1,5 @@
 /**
- * Paletas de colores MecanicaYA.
+ * Paletas de colores MotorSense.
  * Contraste mínimo: 4.5:1 para texto normal (WCAG AA), 3:1 para iconos y texto grande.
  */
 

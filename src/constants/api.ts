@@ -15,8 +15,18 @@ const BACKEND_PORT = 3001;
  * Todas las variantes tienen formato "192.168.x.x:PORT".
  * Se extrae solo la IP y se reemplaza el puerto por el del backend.
  */
+/**
+ * Forma de `Constants` que nos interesa, declarada localmente para no depender
+ * de los tipos cambiantes de `expo-constants` entre SDKs.
+ */
+interface ExpoConstantsShape {
+  expoGoConfig?: { debuggerHost?: string };
+  expoConfig?: { hostUri?: string; extra?: { apiBaseUrl?: string } };
+  manifest?: { hostUri?: string; debuggerHost?: string; extra?: { apiBaseUrl?: string } };
+}
+
 function resolveDevBaseUrl(): string {
-  const c = Constants as any;
+  const c = Constants as unknown as ExpoConstantsShape;
 
   const hostUri: string | undefined =
     c.expoGoConfig?.debuggerHost ||  // SDK 50+ con Expo Go (SDK 55 usa esto)
@@ -34,8 +44,26 @@ function resolveDevBaseUrl(): string {
     : `http://localhost:${BACKEND_PORT}`;
 }
 
+/**
+ * URL del backend en producción. Se lee de `expo.extra.apiBaseUrl` en app.json
+ * (o de `manifest.extra` en SDKs viejos). Si falta, se avisa por consola y se
+ * cae a un placeholder que rompe el request — preferible al silencio.
+ */
+function resolveProdBaseUrl(): string {
+  const c = Constants as unknown as ExpoConstantsShape;
+  const url: string | undefined =
+    c.expoConfig?.extra?.apiBaseUrl || c.manifest?.extra?.apiBaseUrl;
+
+  if (url) return url;
+
+  console.warn(
+    '[api] apiBaseUrl no configurada. Definila en app.json → expo.extra.apiBaseUrl antes de un build de producción.'
+  );
+  return 'https://api.invalid';
+}
+
 export const getApiBaseUrl = (): string =>
-  __DEV__ ? resolveDevBaseUrl() : 'https://api.tu-app-vehicular.com';
+  __DEV__ ? resolveDevBaseUrl() : resolveProdBaseUrl();
 
 // Compatibilidad con imports existentes — se resuelve en runtime, no al importar.
 export const API_BASE_URL = getApiBaseUrl();
