@@ -17,7 +17,7 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.mecanicaya.app",
       "infoPlist": {
-        "NSMicrophoneUsageDescription": "MecanicaYA usa el micrófono para grabar tu voz y describir síntomas del vehículo."
+        "NSMicrophoneUsageDescription": "MotorSense usa el micrófono para grabar tu voz y describir síntomas del vehículo."
       }
     },
     "android": {
