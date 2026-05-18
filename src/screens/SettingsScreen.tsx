@@ -9,6 +9,7 @@ import {
   Car, Fuel, AlertTriangle, ShieldCheck, Cpu, Phone, Shield, ChevronRight, Sun, Moon, Monitor,
 } from 'lucide-react-native';
 import { useTheme, ThemePreference } from '../context/ThemeContext';
+import { SegmentedControl } from '../components/SegmentedControl';
 import { useVehicleProfile } from '../hooks/useVehicleProfile';
 import { PerfilVehiculo } from '../services/storage';
 import { API_BASE_URL, API_ENDPOINTS } from '../constants/api';
@@ -122,13 +123,6 @@ export default function SettingsScreen() {
       borderBottomWidth: 1.5, borderBottomColor: colors.brand, paddingVertical: 6, fontWeight: '600',
     },
 
-    segmentSection:     { paddingHorizontal: 16, paddingVertical: 14, gap: 10 },
-    segmentLabelRow:    { flexDirection: 'row', alignItems: 'center', gap: 6 },
-    segmentOptions:     { flexDirection: 'row', gap: 8 },
-    segmentOption:      { flex: 1, paddingVertical: 12, borderRadius: 10, borderWidth: 1.5, borderColor: colors.borderColor, alignItems: 'center' },
-    segmentOptionActive:{ borderColor: colors.brand, backgroundColor: colors.brandSoft },
-    segmentText:       { fontSize: 13, fontWeight: '500', color: colors.secondaryText },
-    segmentTextActive: { color: colors.brand, fontWeight: '700' },
 
     aboutRow:      { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14 },
     aboutLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
@@ -253,26 +247,13 @@ export default function SettingsScreen() {
             ))}
 
             {/* Combustible */}
-            <View style={s.segmentSection}>
-              <View style={s.segmentLabelRow}>
-                <Fuel color={colors.tertiaryText} size={14} />
-                <Text style={s.rowLabel}>Combustible</Text>
-              </View>
-              <View style={s.segmentOptions}>
-                {FUEL_OPTIONS.map((fuel) => (
-                  <TouchableOpacity
-                    key={fuel}
-                    style={[s.segmentOption, perfilTemp.combustible === fuel && s.segmentOptionActive]}
-                    onPress={() => handleFuelChange(fuel)}
-                    activeOpacity={0.8}
-                  >
-                    <Text style={[s.segmentText, perfilTemp.combustible === fuel && s.segmentTextActive]}>
-                      {fuel}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
+            <SegmentedControl
+              label="Combustible"
+              LabelIcon={Fuel}
+              options={FUEL_OPTIONS.map((f) => ({ value: f, label: f }))}
+              value={perfilTemp.combustible}
+              onChange={handleFuelChange}
+            />
           </View>
 
           {/* Apariencia */}
@@ -280,31 +261,13 @@ export default function SettingsScreen() {
             <Text style={s.sectionLabelText}>APARIENCIA</Text>
           </View>
           <View style={s.card}>
-            <View style={s.segmentSection}>
-              <View style={s.segmentLabelRow}>
-                <Sun color={colors.tertiaryText} size={14} />
-                <Text style={s.rowLabel}>Tema</Text>
-              </View>
-              <View style={s.segmentOptions}>
-                {THEME_OPTIONS.map((opt) => (
-                  <TouchableOpacity
-                    key={opt.value}
-                    style={[s.segmentOption, preference === opt.value && s.segmentOptionActive]}
-                    onPress={() => setPreference(opt.value)}
-                    activeOpacity={0.8}
-                  >
-                    <opt.Icon
-                      color={preference === opt.value ? colors.brand : colors.tertiaryText}
-                      size={16}
-                      strokeWidth={2}
-                    />
-                    <Text style={[s.segmentText, preference === opt.value && s.segmentTextActive]}>
-                      {opt.label}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
+            <SegmentedControl
+              label="Tema"
+              LabelIcon={Sun}
+              options={THEME_OPTIONS.map((o) => ({ value: o.value, label: o.label, Icon: o.Icon }))}
+              value={preference}
+              onChange={setPreference}
+            />
           </View>
 
           {/* Aplicación */}

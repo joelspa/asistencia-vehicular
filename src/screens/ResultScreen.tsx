@@ -7,13 +7,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
-  ArrowLeft, ArrowRight, Info, ChevronDown, ChevronUp, RefreshCcw, MapPin, AlertTriangle, Check, MessageSquare,
-  ShieldAlert, Clock, CheckCircle, Plus,
+  ArrowRight, Info, ChevronDown, ChevronUp, RefreshCcw, MapPin, AlertTriangle, MessageSquare, Plus,
 } from 'lucide-react-native';
 import { RootStackParamList } from '../types/navigation';
 import { useColors } from '../context/ThemeContext';
 import SectionLabel from '../components/SectionLabel';
 import CauseRow from '../components/CauseRow';
+import { HeroUrgency } from '../components/HeroUrgency';
 import { getUrgencyConfig, getUrgencyLevel } from '../constants/urgency';
 
 type ResultRoute = RouteProp<RootStackParamList, 'Resultado'>;
@@ -43,53 +43,15 @@ export default function ResultScreen() {
       {/* hero siempre tiene fondo saturado de urgencia → light-content seguro en ambos temas */}
       <StatusBar barStyle="light-content" backgroundColor={heroBg} />
 
-      {/* Hero */}
-      <View style={[s.hero, { backgroundColor: heroBg, paddingTop: insets.top + 14 }]}>
-        {/* Fila superior */}
-        <View style={s.heroTop}>
-          <TouchableOpacity onPress={() => navigation.goBack()} activeOpacity={0.7} style={s.backBtn}>
-            <ArrowLeft color="rgba(255,255,255,0.9)" size={18} />
-            <Text style={s.backText}>Volver</Text>
-          </TouchableOpacity>
-          <View style={s.savedBadge}>
-            <Check color="#fff" size={12} strokeWidth={3} />
-            <Text style={s.savedText}>Guardado en historial</Text>
-          </View>
-        </View>
-
-        {/* Score + título */}
-        <View style={s.scoreRow}>
-          <View style={[s.scoreBox, { backgroundColor: 'rgba(255,255,255,0.18)' }]}>
-            {diagnostico.urgency_level === 'critica'
-              ? <ShieldAlert color="#fff" size={38} strokeWidth={1.8} />
-              : diagnostico.urgency_level === 'moderada'
-              ? <Clock color="#fff" size={38} strokeWidth={1.8} />
-              : <CheckCircle color="#fff" size={38} strokeWidth={1.8} />}
-          </View>
-          <View style={s.scoreMeta}>
-            <View style={s.levelBadge}>
-              <Text style={s.levelBadgeText}>{config.label.toUpperCase()}</Text>
-            </View>
-            <Text style={s.heroTitle}>{config.hint}</Text>
-          </View>
-        </View>
-
-        {/* Mini stats */}
-        <View style={s.miniStats}>
-          {[
-            { l: 'Confianza', v: `${diagnostico.causas[0]?.probabilidad ?? '--'}%` },
-            { l: 'Causas', v: `${diagnostico.causas.length}` },
-            { l: 'Especialidades', v: `${diagnostico.especialidades_recomendadas?.length ?? 0}` },
-          ].map((stat) => (
-            <View key={stat.l} style={s.miniStat}>
-              <Text style={s.miniStatLabel}>{stat.l}</Text>
-              <Text style={s.miniStatValue}>{stat.v}</Text>
-            </View>
-          ))}
-        </View>
-
-        <View style={s.heroCurve} />
-      </View>
+      <HeroUrgency
+        level={diagnostico.urgency_level}
+        config={config}
+        paddingTop={insets.top + 14}
+        confianza={diagnostico.causas[0]?.probabilidad}
+        causasCount={diagnostico.causas.length}
+        especialidadesCount={diagnostico.especialidades_recomendadas?.length ?? 0}
+        onBack={() => navigation.goBack()}
+      />
 
       <ScrollView
         style={s.scroll}
@@ -242,71 +204,7 @@ export default function ResultScreen() {
 const styles = (colors: ReturnType<typeof useColors>) => StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.appBackground },
 
-  // Hero
-  hero: { paddingHorizontal: 20, paddingBottom: 44, position: 'relative' },
-  heroTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 18,
-  },
-  backBtn: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  backText: { fontSize: 13, fontWeight: '600', color: 'rgba(255,255,255,0.9)' },
-  savedBadge: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  savedText: { fontSize: 11, color: 'rgba(255,255,255,0.85)', fontWeight: '600' },
-
-  scoreRow: { flexDirection: 'row', alignItems: 'center', gap: 16, marginBottom: 16 },
-  scoreBox: {
-    width: 76,
-    height: 76,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.25)',
-  },
-  scoreNum: { fontSize: 32, fontWeight: '800', color: '#fff', lineHeight: 34 },
-  scoreOf: { fontSize: 9, fontWeight: '700', color: 'rgba(255,255,255,0.8)', letterSpacing: 0.5, marginTop: 2 },
-  scoreMeta: { flex: 1 },
-  levelBadge: {
-    alignSelf: 'flex-start',
-    backgroundColor: 'rgba(255,255,255,0.22)',
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    marginBottom: 8,
-  },
-  levelBadgeText: { fontSize: 10.5, fontWeight: '700', color: '#fff', letterSpacing: 0.4 },
-  heroTitle: {
-    fontSize: 21,
-    fontWeight: '800',
-    color: '#fff',
-    lineHeight: 24,
-    letterSpacing: -0.3,
-  },
-
-  miniStats: { flexDirection: 'row', gap: 8 },
-  miniStat: {
-    flex: 1,
-    backgroundColor: 'rgba(255,255,255,0.14)',
-    borderRadius: 12,
-    padding: 10,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
-  },
-  miniStatLabel: { fontSize: 9.5, color: 'rgba(255,255,255,0.8)', fontWeight: '600', letterSpacing: 0.3, textTransform: 'uppercase' },
-  miniStatValue: { fontSize: 15, fontWeight: '800', color: '#fff', marginTop: 2 },
-
-  heroCurve: {
-    position: 'absolute',
-    bottom: -1,
-    left: 0,
-    right: 0,
-    height: 28,
-    backgroundColor: colors.appBackground,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-  },
+  // (estilos del hero viven en HeroUrgency)
 
   // Content
   scroll: { flex: 1 },

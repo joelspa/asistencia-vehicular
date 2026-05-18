@@ -11,13 +11,14 @@ import Animated, {
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
-import { Navigation, MapPin, ChevronUp } from 'lucide-react-native';
+import { ChevronUp } from 'lucide-react-native';
 import { useRoute, RouteProp } from '@react-navigation/native';
 import { useTheme } from '../context/ThemeContext';
 import { TabParamList } from '../types/navigation';
 import { generateLeafletMapHtml } from '../constants/html';
 import { CategoryKey, getCategoryConfig, getCategoryKey } from '../utils/categoryClassifier';
 import { useTalleresNearby, TallerDisplay } from '../hooks/useTalleresNearby';
+import { TallerListItem } from '../components/TallerListItem';
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
 const SHEET_COLLAPSED = 220;
@@ -181,29 +182,6 @@ export default function MapScreen() {
     },
 
     sheetScroll: { flex: 1, paddingHorizontal: 16 },
-    tallerCard: {
-      flexDirection: 'row', alignItems: 'center',
-      paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.surface2, gap: 12,
-    },
-    tallerIconWrap: {
-      width: 36, height: 36, borderRadius: 10,
-      alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-    },
-    tallerInfo: { flex: 1 },
-    tallerName: { fontSize: 14.5, fontWeight: '700', color: colors.primaryText, marginBottom: 5 },
-    tallerMeta: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-    tallerDist: { fontSize: 12, color: colors.tertiaryText, fontWeight: '500' },
-    tallerBadge: {
-      backgroundColor: colors.surface2, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 100,
-    },
-    tallerBadgeText: { fontSize: 11, color: colors.secondaryText, fontWeight: '600' },
-    routeBtn: {
-      backgroundColor: colors.navy, paddingHorizontal: 14, paddingVertical: 10,
-      borderRadius: 10, flexDirection: 'row', alignItems: 'center', gap: 5,
-      elevation: 2, shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 4,
-    },
-    routeBtnText: { fontSize: 13, fontWeight: '700', color: '#fff' },
     emptyFilter: { alignItems: 'center', paddingTop: 32, gap: 8 },
     emptyFilterText: { fontSize: 14, color: colors.tertiaryText, fontWeight: '500' },
   }), [colors, isDark]);
@@ -323,31 +301,14 @@ export default function MapScreen() {
                 <View style={s.emptyFilter}>
                   <Text style={s.emptyFilterText}>Sin talleres en esta categoría</Text>
                 </View>
-              ) : filteredTalleres.map((t) => {
-                const cat = getCategoryKey(t.especialidad);
-                const cfg = CATEGORY_CONFIG[cat];
-                return (
-                  <View key={t.id} style={s.tallerCard}>
-                    <View style={[s.tallerIconWrap, { backgroundColor: `${cfg.color}${isDark ? '33' : '22'}` }]}>
-                      <cfg.Icon color={cfg.color} size={16} strokeWidth={2.2} />
-                    </View>
-                    <View style={s.tallerInfo}>
-                      <Text style={s.tallerName} numberOfLines={1}>{t.nombre}</Text>
-                      <View style={s.tallerMeta}>
-                        <MapPin color={colors.tertiaryText} size={11} />
-                        <Text style={s.tallerDist}>{t.distancia}</Text>
-                        <View style={s.tallerBadge}>
-                          <Text style={s.tallerBadgeText}>{t.especialidad}</Text>
-                        </View>
-                      </View>
-                    </View>
-                    <TouchableOpacity style={s.routeBtn} onPress={() => abrirRuta(t)} activeOpacity={0.8}>
-                      <Navigation color="#fff" size={13} strokeWidth={2.2} />
-                      <Text style={s.routeBtnText}>Ir</Text>
-                    </TouchableOpacity>
-                  </View>
-                );
-              })}
+              ) : filteredTalleres.map((t) => (
+                <TallerListItem
+                  key={t.id}
+                  taller={t}
+                  category={CATEGORY_CONFIG[getCategoryKey(t.especialidad)]}
+                  onPressRoute={() => abrirRuta(t)}
+                />
+              ))}
             </Animated.ScrollView>
           </GestureDetector>
         )}
