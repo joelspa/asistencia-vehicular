@@ -1,19 +1,26 @@
+/**
+ * useModoMoto — detección de accidentes en Modo Moto.
+ * Comportamiento controlado por `MODO_GYRO_HABILITADO` en `constants/sensors.ts`:
+ *   - false (default): solo acelerómetro con umbral bajo (testing/QA).
+ *   - true: doble condición acelerómetro + giroscopio (producción).
+ */
 import { useEffect, useRef, useState } from 'react';
 import { Linking, Platform, Vibration } from 'react-native';
-// import { Accelerometer, Gyroscope } from 'expo-sensors'; // [GYRO] descomentar al habilitar giroscopio
-import { Accelerometer } from 'expo-sensors';
+import { Accelerometer, Gyroscope } from 'expo-sensors';
 import * as Location from 'expo-location';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// Umbral solo acelerómetro — modo simulación/demo
-const IMPACT_THRESHOLD_G = 0.5;
+import {
+    MODO_GYRO_HABILITADO,
+    IMPACT_THRESHOLD_G_SIMULACION,
+    IMPACT_THRESHOLD_G_PRODUCCION,
+    ROTATION_THRESHOLD_RAD,
+    TRIGGER_WINDOW_MS,
+    ACCEL_UPDATE_INTERVAL_MS_SIMULACION,
+    SENSOR_UPDATE_INTERVAL_MS_PRODUCCION,
+    COUNTDOWN_SECONDS,
+} from '../constants/sensors';
 
-// [GYRO] Umbrales para producción con doble condición (impacto + caída)
-// const IMPACT_THRESHOLD_G = 2.5;          // G — sacudida fuerte
-// const ROTATION_THRESHOLD_RAD = (45 * Math.PI) / 180; // 45° de rotación post-impacto
-// const TRIGGER_WINDOW_MS = 3500;          // ventana máxima entre impacto y caída
-
-const COUNTDOWN_SECONDS = 10;
 const KEY_CONTACTO = 'moto:contacto';
 const KEY_EVENTOS = 'moto:eventos';
 
@@ -26,10 +33,10 @@ export function useModoMoto() {
 
     const r = useRef({
         accelSub: null as ReturnType<typeof Accelerometer.addListener> | null,
-        // [GYRO] gyroSub: null as ReturnType<typeof Gyroscope.addListener> | null,
-        // [GYRO] impactTime: null as number | null,
-        // [GYRO] cumRotation: 0,
-        // [GYRO] lastGyroTime: null as number | null,
+        gyroSub: null as ReturnType<typeof Gyroscope.addListener> | null,
+        impactTime: null as number | null,
+        cumRotation: 0,
+        lastGyroTime: null as number | null,
         locationSub: null as Location.LocationSubscription | null,
         lastLocation: null as Location.LocationObject | null,
         countdownTimer: null as ReturnType<typeof setInterval> | null,
@@ -38,9 +45,13 @@ export function useModoMoto() {
     });
 
     useEffect(() => {
-        AsyncStorage.getItem(KEY_CONTACTO).then((v) => {
-            if (v) { setContactoState(v); r.current.contacto = v; }
-        });
+        AsyncStorage.getItem(KEY_CONTACTO)
+            .then((v) => {
+                if (v) { setContactoState(v); r.current.contacto = v; }
+            })
+            .catch((e) => {
+                console.warn('[useModoMoto] No se pudo leer contacto de emergencia:', e);
+            });
         return () => {
             stopAll();
             if (r.current.countdownTimer) clearInterval(r.current.countdownTimer);
@@ -50,8 +61,8 @@ export function useModoMoto() {
     const stopSensors = () => {
         r.current.accelSub?.remove();
         r.current.accelSub = null;
-        // [GYRO] r.current.gyroSub?.remove();
-        // [GYRO] r.current.gyroSub = null;
+        r.current.gyroSub?.remove();
+        r.current.gyroSub = null;
     };
 
     const stopLocationTracking = () => {
@@ -93,10 +104,21 @@ export function useModoMoto() {
             const mapUrl = `https://maps.google.com/?q=${lat},${lng}`;
             const texto = `[EMERGENCIA] ACCIDENTE DE MOTO DETECTADO\nNecesito ayuda urgente.\nUbicacion: ${mapUrl}\nHora: ${timestamp}`;
 
-            const stored = await AsyncStorage.getItem(KEY_EVENTOS);
-            const eventos = stored ? JSON.parse(stored) : [];
+            // Defensa contra storage corrupto: no podemos crashear durante una emergencia.
+            let eventos: Array<{ fecha: string; lat: number; lng: number }> = [];
+            try {
+                const stored = await AsyncStorage.getItem(KEY_EVENTOS);
+                if (stored) eventos = JSON.parse(stored);
+                if (!Array.isArray(eventos)) eventos = [];
+            } catch {
+                eventos = [];
+            }
             eventos.push({ fecha: new Date().toISOString(), lat, lng });
-            await AsyncStorage.setItem(KEY_EVENTOS, JSON.stringify(eventos));
+            try {
+                await AsyncStorage.setItem(KEY_EVENTOS, JSON.stringify(eventos));
+            } catch {
+                // Persistencia falla: no interrumpas el envío de WhatsApp.
+            }
 
             const numero = r.current.contacto.replace(/\D/g, '');
             if (numero) {
@@ -133,61 +155,70 @@ export function useModoMoto() {
         }, 1000);
     };
 
-    const startSensors = () => {
-        r.current.alerting = false;
-        // [GYRO] r.current.impactTime = null;
-        // [GYRO] r.current.cumRotation = 0;
-        // [GYRO] r.current.lastGyroTime = null;
-
-        // Modo simulación: dispara con solo acelerómetro > umbral
-        Accelerometer.setUpdateInterval(50);
+    const startSensorsSimulacion = () => {
+        Accelerometer.setUpdateInterval(ACCEL_UPDATE_INTERVAL_MS_SIMULACION);
         r.current.accelSub = Accelerometer.addListener(({ x, y, z }) => {
             if (r.current.alerting) return;
             const mag = Math.sqrt(x * x + y * y + z * z);
             const magG = Platform.OS === 'android' ? mag / 9.81 : mag;
-
-            if (magG > IMPACT_THRESHOLD_G) {
+            if (magG > IMPACT_THRESHOLD_G_SIMULACION) {
                 triggerAlert();
             }
         });
-
-        // [GYRO] Modo producción: requiere impacto + rotación dentro de TRIGGER_WINDOW_MS
-        // Accelerometer.setUpdateInterval(80);
-        // r.current.accelSub = Accelerometer.addListener(({ x, y, z }) => {
-        //     if (r.current.alerting) return;
-        //     const mag = Math.sqrt(x * x + y * y + z * z);
-        //     const magG = Platform.OS === 'android' ? mag / 9.81 : mag;
-        //     if (magG > IMPACT_THRESHOLD_G && r.current.impactTime === null) {
-        //         r.current.impactTime = Date.now();
-        //         r.current.cumRotation = 0;
-        //         r.current.lastGyroTime = null;
-        //     }
-        // });
-        //
-        // Gyroscope.setUpdateInterval(80);
-        // r.current.gyroSub = Gyroscope.addListener(({ y, z }) => {
-        //     if (r.current.alerting || r.current.impactTime === null) return;
-        //     const now = Date.now();
-        //     const elapsed = now - r.current.impactTime;
-        //     if (elapsed > TRIGGER_WINDOW_MS) {
-        //         r.current.impactTime = null;
-        //         r.current.cumRotation = 0;
-        //         r.current.lastGyroTime = null;
-        //         return;
-        //     }
-        //     const dt = r.current.lastGyroTime ? (now - r.current.lastGyroTime) / 1000 : 0.08;
-        //     r.current.lastGyroTime = now;
-        //     r.current.cumRotation += (Math.abs(y) + Math.abs(z)) * dt;
-        //     if (r.current.cumRotation >= ROTATION_THRESHOLD_RAD) {
-        //         triggerAlert();
-        //     }
-        // });
     };
 
-    const activate = () => {
+    const startSensorsProduccion = () => {
+        Accelerometer.setUpdateInterval(SENSOR_UPDATE_INTERVAL_MS_PRODUCCION);
+        r.current.accelSub = Accelerometer.addListener(({ x, y, z }) => {
+            if (r.current.alerting) return;
+            const mag = Math.sqrt(x * x + y * y + z * z);
+            const magG = Platform.OS === 'android' ? mag / 9.81 : mag;
+            if (magG > IMPACT_THRESHOLD_G_PRODUCCION && r.current.impactTime === null) {
+                r.current.impactTime = Date.now();
+                r.current.cumRotation = 0;
+                r.current.lastGyroTime = null;
+            }
+        });
+
+        Gyroscope.setUpdateInterval(SENSOR_UPDATE_INTERVAL_MS_PRODUCCION);
+        r.current.gyroSub = Gyroscope.addListener(({ y, z }) => {
+            if (r.current.alerting || r.current.impactTime === null) return;
+            const now = Date.now();
+            const elapsed = now - r.current.impactTime;
+            if (elapsed > TRIGGER_WINDOW_MS) {
+                r.current.impactTime = null;
+                r.current.cumRotation = 0;
+                r.current.lastGyroTime = null;
+                return;
+            }
+            const dt = r.current.lastGyroTime ? (now - r.current.lastGyroTime) / 1000 : 0.08;
+            r.current.lastGyroTime = now;
+            r.current.cumRotation += (Math.abs(y) + Math.abs(z)) * dt;
+            if (r.current.cumRotation >= ROTATION_THRESHOLD_RAD) {
+                triggerAlert();
+            }
+        });
+    };
+
+    const startSensors = () => {
+        r.current.alerting = false;
+        r.current.impactTime = null;
+        r.current.cumRotation = 0;
+        r.current.lastGyroTime = null;
+
+        if (MODO_GYRO_HABILITADO) {
+            startSensorsProduccion();
+        } else {
+            startSensorsSimulacion();
+        }
+    };
+
+    const activate = async () => {
         setPhase('monitoring');
         startSensors();
-        startLocationTracking();
+        // Esperamos a que la suscripción a Location esté lista. Si un impacto
+        // ocurre antes, `lastLocation` queda en null y el WhatsApp sale sin coords.
+        await startLocationTracking();
     };
 
     const deactivate = () => {

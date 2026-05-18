@@ -7,7 +7,8 @@
  */
 
 import { DiagnosticoResponse } from '../types/apiTypes';
-import { getApiBaseUrl, API_ENDPOINTS, API_CONFIG } from '../constants/api';
+import { getApiBaseUrl, API_ENDPOINTS } from '../constants/api';
+import { fetchWithTimeout } from './http';
 import { ERROR_MESSAGES } from '../utils/errorMessages';
 
 /**
@@ -27,21 +28,11 @@ export const solicitarDiagnostico = async (
   try {
     const url = `${getApiBaseUrl()}${API_ENDPOINTS.diagnosticar}`;
 
-    const response = await Promise.race([
-      fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ sintomas, perfilVehiculo }),
-      }),
-      new Promise<Response>((_, reject) =>
-        setTimeout(
-          () => reject(new Error('Request timeout')),
-          API_CONFIG.requestTimeout
-        )
-      ),
-    ]);
+    const response = await fetchWithTimeout(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sintomas, perfilVehiculo }),
+    });
 
     if (!response.ok) {
       throw new Error(`Servidor respondió con estado ${response.status}`);

@@ -37,9 +37,5 @@ export function useDiagnosisFetch() {
     []
   );
 
-  const reset = useCallback(() => {
-    setState({ loading: false, success: false, error: null, diagnostico: null });
-  }, []);
-
-  return { ...state, fetchDiagnosis, reset };
+  return { ...state, fetchDiagnosis };
 }

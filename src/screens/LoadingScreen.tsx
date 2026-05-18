@@ -1,5 +1,5 @@
 /** Pantalla intermedia: análisis mientras se obtiene el diagnóstico. Muestra error si la IA no está disponible. */
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { View, Text, StyleSheet, Animated, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -9,13 +9,9 @@ import { Check, Cpu, Lock, WifiOff, ArrowLeft } from 'lucide-react-native';
 import { RootStackParamList } from '../types/navigation';
 import { useColors } from '../context/ThemeContext';
 import { useDiagnosisFetch } from '../hooks/useDiagnosisFetch';
+import { withAlpha } from '../theme/utils';
 
 type LoadingRoute = RouteProp<RootStackParamList, 'Carga'>;
-
-function withAlpha(hex: string, alpha: number): string {
-  const a = Math.round(Math.max(0, Math.min(1, alpha)) * 255).toString(16).padStart(2, '0');
-  return `${hex}${a}`;
-}
 
 const CONNECTOR_FILL_BY_STEP: Record<1 | 2 | 3, number> = { 1: 0, 2: 56, 3: 110 };
 
@@ -88,7 +84,7 @@ export default function LoadingScreen() {
     },
   ];
 
-  const s = StyleSheet.create({
+  const s = useMemo(() => StyleSheet.create({
     screen:      { flex: 1, backgroundColor: colors.appBackground },
     header:      { height: 48, alignItems: 'center', justifyContent: 'center' },
     headerTitle: { fontSize: 15, fontWeight: '600', color: colors.primaryText },
@@ -145,7 +141,7 @@ export default function LoadingScreen() {
       borderRadius: 999, paddingVertical: 14, paddingHorizontal: 28,
     },
     backBtnText: { fontSize: 15, fontWeight: '700', color: colors.primaryText },
-  });
+  }), [colors]);
 
   if (showError) {
     return (
