@@ -93,10 +93,21 @@ export function useModoMoto() {
             const mapUrl = `https://maps.google.com/?q=${lat},${lng}`;
             const texto = `[EMERGENCIA] ACCIDENTE DE MOTO DETECTADO\nNecesito ayuda urgente.\nUbicacion: ${mapUrl}\nHora: ${timestamp}`;
 
-            const stored = await AsyncStorage.getItem(KEY_EVENTOS);
-            const eventos = stored ? JSON.parse(stored) : [];
+            // Defensa contra storage corrupto: no podemos crashear durante una emergencia.
+            let eventos: Array<{ fecha: string; lat: number; lng: number }> = [];
+            try {
+                const stored = await AsyncStorage.getItem(KEY_EVENTOS);
+                if (stored) eventos = JSON.parse(stored);
+                if (!Array.isArray(eventos)) eventos = [];
+            } catch {
+                eventos = [];
+            }
             eventos.push({ fecha: new Date().toISOString(), lat, lng });
-            await AsyncStorage.setItem(KEY_EVENTOS, JSON.stringify(eventos));
+            try {
+                await AsyncStorage.setItem(KEY_EVENTOS, JSON.stringify(eventos));
+            } catch {
+                // Persistencia falla: no interrumpas el envío de WhatsApp.
+            }
 
             const numero = r.current.contacto.replace(/\D/g, '');
             if (numero) {
@@ -184,10 +195,12 @@ export function useModoMoto() {
         // });
     };
 
-    const activate = () => {
+    const activate = async () => {
         setPhase('monitoring');
         startSensors();
-        startLocationTracking();
+        // Esperamos a que la suscripción a Location esté lista. Si un impacto
+        // ocurre antes, `lastLocation` queda en null y el WhatsApp sale sin coords.
+        await startLocationTracking();
     };
 
     const deactivate = () => {

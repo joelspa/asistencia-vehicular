@@ -34,8 +34,26 @@ function resolveDevBaseUrl(): string {
     : `http://localhost:${BACKEND_PORT}`;
 }
 
+/**
+ * URL del backend en producción. Se lee de `expo.extra.apiBaseUrl` en app.json
+ * (o de `manifest.extra` en SDKs viejos). Si falta, se avisa por consola y se
+ * cae a un placeholder que rompe el request — preferible al silencio.
+ */
+function resolveProdBaseUrl(): string {
+  const c = Constants as any;
+  const url: string | undefined =
+    c.expoConfig?.extra?.apiBaseUrl || c.manifest?.extra?.apiBaseUrl;
+
+  if (url) return url;
+
+  console.warn(
+    '[api] apiBaseUrl no configurada. Definila en app.json → expo.extra.apiBaseUrl antes de un build de producción.'
+  );
+  return 'https://api.invalid';
+}
+
 export const getApiBaseUrl = (): string =>
-  __DEV__ ? resolveDevBaseUrl() : 'https://api.tu-app-vehicular.com';
+  __DEV__ ? resolveDevBaseUrl() : resolveProdBaseUrl();
 
 // Compatibilidad con imports existentes — se resuelve en runtime, no al importar.
 export const API_BASE_URL = getApiBaseUrl();
