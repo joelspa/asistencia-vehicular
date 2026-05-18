@@ -11,30 +11,19 @@ import Animated, {
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
-import * as Location from 'expo-location';
 import { Navigation, MapPin, ChevronUp } from 'lucide-react-native';
 import { useRoute, RouteProp } from '@react-navigation/native';
 import { useTheme } from '../context/ThemeContext';
 import { TabParamList } from '../types/navigation';
-import { mockTalleres } from '../data/mockData';
 import { generateLeafletMapHtml } from '../constants/html';
-import { getApiBaseUrl } from '../constants/api';
 import { CategoryKey, getCategoryConfig, getCategoryKey } from '../utils/categoryClassifier';
+import { useTalleresNearby, TallerDisplay } from '../hooks/useTalleresNearby';
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
 const SHEET_COLLAPSED = 220;
 const SHEET_EXPANDED = SCREEN_HEIGHT * 0.65;
 const SHEET_COLLAPSED_OFFSET = SHEET_EXPANDED - SHEET_COLLAPSED;
 const SPRING_CONFIG = { damping: 22, stiffness: 220, mass: 0.8 };
-
-interface TallerDisplay {
-  id: string;
-  nombre: string;
-  distancia: string;
-  especialidad: string;
-  latitud: number;
-  longitud: number;
-}
 
 export default function MapScreen() {
   const { colors, isDark } = useTheme();
@@ -44,14 +33,9 @@ export default function MapScreen() {
   const route = useRoute<RouteProp<TabParamList, 'Mapa'>>();
   const especialidadesParam = route.params?.especialidades;
 
-  type TallerParaMapa = { nombre: string; latitud: number; longitud: number; especialidad?: string };
+  const { loading, userCoords, mapCenter, talleres, rawTalleres } = useTalleresNearby();
 
-  const [talleres, setTalleres] = useState<TallerDisplay[]>([]);
-  const [loading, setLoading] = useState(true);
   const [mapHtml, setMapHtml] = useState<string | null>(null);
-  const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(null);
-  const [rawTalleres, setRawTalleres] = useState<TallerParaMapa[]>([]);
-  const [mapCenter, setMapCenter] = useState<{ lat: number; lng: number } | null>(null);
   const [sheetExpanded, setSheetExpanded] = useState(false);
   const [activeFilter, setActiveFilter] = useState<CategoryKey | null>(null);
 
@@ -143,55 +127,10 @@ export default function MapScreen() {
     Linking.openURL(`https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${dest}&travelmode=driving`);
   };
 
-  useEffect(() => { inicializarMapa(); }, []);
-
   useEffect(() => {
     if (!mapCenter) return;
     setMapHtml(generateLeafletMapHtml(mapCenter.lat, mapCenter.lng, insets.top + 8, rawTalleres, isDark));
-  }, [isDark, mapCenter, rawTalleres]);
-
-  async function inicializarMapa() {
-    try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      let lat = -17.7863, lng = -63.1812;
-      if (status === 'granted') {
-        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-        lat = loc.coords.latitude;
-        lng = loc.coords.longitude;
-      }
-      setUserCoords({ lat, lng });
-
-      let talleresParaMapa: TallerParaMapa[] = [];
-      try {
-        const res = await fetch(`${getApiBaseUrl()}/talleres?lat=${lat}&lng=${lng}`);
-        const data = await res.json();
-        if (data.talleres?.length) {
-          talleresParaMapa = data.talleres;
-          setTalleres(data.talleres.slice(0, 15).map((t: any) => ({
-            id: String(t.id), nombre: t.nombre,
-            distancia: t.distancia || `${t.distanciaKm} km`,
-            especialidad: t.especialidad || 'General',
-            latitud: t.latitud, longitud: t.longitud,
-          })));
-        } else throw new Error();
-      } catch {
-        talleresParaMapa = mockTalleres.map(t => ({
-          nombre: t.nombre, latitud: t.coordenadas.lat, longitud: t.coordenadas.lng,
-          especialidad: t.especialidad,
-        }));
-        setTalleres(mockTalleres.map(t => ({
-          id: t.id, nombre: t.nombre, distancia: t.distancia,
-          especialidad: t.especialidad, latitud: t.coordenadas.lat, longitud: t.coordenadas.lng,
-        })));
-      }
-      setRawTalleres(talleresParaMapa);
-      setMapCenter({ lat, lng });
-    } catch (e) {
-      console.error('Error al inicializar mapa:', e);
-    } finally {
-      setLoading(false);
-    }
-  }
+  }, [isDark, mapCenter, rawTalleres, insets.top]);
 
   const s = useMemo(() => StyleSheet.create({
     screen: { flex: 1, backgroundColor: colors.appBackground },
